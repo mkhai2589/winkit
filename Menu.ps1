@@ -1,16 +1,18 @@
 function Show-MainMenu {
-
     Clear-Host
     Initialize-UI
 
     $config = Read-Json "$WK_ROOT\config.json"
     $features = $config.features | Sort-Object order
 
+    Write-Host "MAIN MENU" -ForegroundColor Cyan
+    Write-Host "-------------------------------------"
+    
     foreach ($f in $features) {
-        Write-Host "[$($f.order)] $($f.title)" -ForegroundColor $WK_THEME.Menu
+        Write-Host "[$($f.order)] $($f.title)" -ForegroundColor Green
     }
 
-    Write-Host "[0] Exit" -ForegroundColor $WK_THEME.Warn
+    Write-Host "[0] Exit" -ForegroundColor Yellow
     Show-Footer
 
     Write-Host ""
@@ -21,22 +23,30 @@ function Show-MainMenu {
     $selected = $features | Where-Object { $_.order -eq [int]$choice }
 
     if (-not $selected) {
-        Write-Host "Invalid selection." -ForegroundColor $WK_THEME.Error
-        Pause
+        Write-Host "Invalid selection." -ForegroundColor Red
+        Write-Host "Press Enter to continue..."
+        [Console]::ReadKey($true)
         return Show-MainMenu
     }
 
     $featurePath = Join-Path $WK_FEATURES $selected.file
 
     if (-not (Test-Path $featurePath)) {
-        Write-Host "Feature file not found." -ForegroundColor $WK_THEME.Error
-        Pause
+        Write-Host "Feature file not found." -ForegroundColor Red
+        Write-Host "Press Enter to continue..."
+        [Console]::ReadKey($true)
         return Show-MainMenu
     }
 
-    . $featurePath
-    & "Start-$($selected.id)"
-
-    Pause
+    try {
+        . $featurePath
+        & "Start-$($selected.id)"
+    }
+    catch {
+        Write-Host "Error executing feature: $_" -ForegroundColor Red
+        Write-Host "Press Enter to continue..."
+        [Console]::ReadKey($true)
+    }
+    
     Show-MainMenu
 }
