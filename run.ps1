@@ -18,15 +18,22 @@ if (-not (Test-Path $WK_ROOT)) {
 
 $FILES = @(
     "Loader.ps1",
-    "Menu.ps1", 
+    "Menu.ps1",
     "config.json",
+    "version.json",
     "core/Logger.ps1",
     "core/Security.ps1",
     "core/Utils.ps1",
     "core/Interface.ps1",
     "ui/Theme.ps1",
     "ui/UI.ps1",
-    "features/01_CleanSystem.ps1"
+    "features/01_CleanSystem.ps1",
+    "features/02_Activation.ps1",
+    "features/03_Debloat.ps1",
+    "features/04_Tweaks.ps1",
+    "features/05_Network.ps1",
+    "features/06_InstallApps.ps1",
+    "features/07_RemoveWindowsAI.ps1"
 )
 
 foreach ($file in $FILES) {
