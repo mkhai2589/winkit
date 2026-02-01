@@ -1,7 +1,8 @@
 {
   "name": "WinKit",
-  "version": "1.0.0",
   "description": "Windows Optimization Toolkit",
+  "version": "1.0.0",
+  "author": "mkhai2589",
   "features": [
     {
       "id": "CleanSystem",
@@ -10,8 +11,68 @@
       "description": "Clean temporary files and system caches",
       "file": "01_CleanSystem.ps1",
       "requireAdmin": true,
-      "supportedOS": [10, 11],
-      "category": "Maintenance"
+      "category": "Clean",
+      "dangerLevel": "Low"
+    },
+    {
+      "id": "Activation",
+      "order": 2,
+      "title": "Windows Activation",
+      "description": "Activate Windows and Office",
+      "file": "02_Activation.ps1",
+      "requireAdmin": true,
+      "category": "System",
+      "dangerLevel": "Medium"
+    },
+    {
+      "id": "Debloat",
+      "order": 3,
+      "title": "Remove Bloatware",
+      "description": "Remove Windows bloatware and pre-installed apps",
+      "file": "03_Debloat.ps1",
+      "requireAdmin": true,
+      "category": "System",
+      "dangerLevel": "Medium"
+    },
+    {
+      "id": "Tweaks",
+      "order": 4,
+      "title": "System Tweaks",
+      "description": "Performance and privacy tweaks",
+      "file": "04_Tweaks.ps1",
+      "requireAdmin": true,
+      "category": "Tweak",
+      "dangerLevel": "Low"
+    },
+    {
+      "id": "Network",
+      "order": 5,
+      "title": "Network Settings",
+      "description": "Configure DNS and network optimizations",
+      "file": "05_Network.ps1",
+      "requireAdmin": true,
+      "category": "Network",
+      "dangerLevel": "Low"
+    },
+    {
+      "id": "InstallApps",
+      "order": 6,
+      "title": "Install Applications",
+      "description": "Install essential software packages",
+      "file": "06_InstallApps.ps1",
+      "requireAdmin": true,
+      "category": "Install",
+      "dangerLevel": "Low"
+    },
+    {
+      "id": "RemoveWindowsAI",
+      "order": 7,
+      "title": "Remove Windows AI",
+      "description": "Remove Copilot, Recall, and AI features",
+      "file": "07_RemoveWindowsAI.ps1",
+      "requireAdmin": true,
+      "category": "AI",
+      "dangerLevel": "High"
     }
   ]
 }
