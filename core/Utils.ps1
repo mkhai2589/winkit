@@ -5,15 +5,24 @@
 
 function Read-Json {
     param(
-        [Parameter(Mandatory=$true)]  # This makes Path mandatory
+        [Parameter(Mandatory=$true)]
         [string]$Path
     )
+    
+    # Validate file exists
     if (-not (Test-Path $Path)) {
         throw "JSON file not found: $Path"
     }
-    Get-Content $Path -Raw | ConvertFrom-Json
+    
+    try {
+        # Read and parse JSON
+        $content = Get-Content $Path -Raw -ErrorAction Stop
+        return $content | ConvertFrom-Json
+    }
+    catch {
+        throw "Failed to parse JSON from $Path : $_"
+    }
 }
-
 function Write-Json {
     param(
         [Parameter(Mandatory=$true)]
