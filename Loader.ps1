@@ -18,7 +18,8 @@ function Start-WinKit {
         . "$WK_ROOT\core\Utils.ps1"
         . "$WK_ROOT\core\Interface.ps1"
         
-        # LOAD UI MODULES
+        # LOAD UI MODULES - logo trước, theme sau, UI cuối
+        . "$WK_ROOT\ui\logo.ps1"
         . "$WK_ROOT\ui\Theme.ps1"
         . "$WK_ROOT\ui\UI.ps1"
         
