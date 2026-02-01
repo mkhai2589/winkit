@@ -7,8 +7,8 @@ function Initialize-UI {
 function Show-Header {
     $asciiPath = Join-Path $global:WK_ROOT "assets\ascii.txt"
     if (Test-Path $asciiPath) {
-        $asciiArt = Get-Content $asciiPath
-        foreach ($line in $asciiArt) {
+        $asciiLines = Get-Content $asciiPath
+        foreach ($line in $asciiLines) {
             Write-Host $line -ForegroundColor Cyan
         }
         Write-Host ""
@@ -27,7 +27,7 @@ function Show-SystemInfoBar {
         $sysInfo = Get-WKSystemInfo
         
         # Line 1: OS + PS + Admin + Network
-        Write-Host "OS: $($sysInfo.OS) Build $($sysInfo.Build) ($($sysInfo.Arch)) | " -NoNewline -ForegroundColor Cyan
+        Write-Host "OS: $($sysInfo.OS) Build $($sysInfo.Build) | " -NoNewline -ForegroundColor Cyan
         Write-Host "PS: $($sysInfo.PSVersion) | " -NoNewline -ForegroundColor Gray
         Write-Host "Admin: $($sysInfo.Admin) | " -NoNewline -ForegroundColor $(if ($sysInfo.Admin -eq "YES") { "Green" } else { "Red" })
         Write-Host "Mode: $($sysInfo.Mode)" -ForegroundColor $(if ($sysInfo.Mode -eq "Online") { "Green" } else { "Yellow" })
@@ -40,14 +40,12 @@ function Show-SystemInfoBar {
         # Line 3: Time Zone
         Write-Host "TIME ZONE: $($sysInfo.TimeZone)" -ForegroundColor Cyan
         
-        # Line 4: Disk Information
+        # Line 4-?: Disks info
         Write-Host "DISKS:" -ForegroundColor Cyan
         if ($sysInfo.Disks.Count -gt 0) {
             foreach ($disk in $sysInfo.Disks) {
                 $color = if ($disk.Percentage -gt 90) { "Red" } elseif ($disk.Percentage -gt 75) { "Yellow" } else { "Green" }
-                Write-Host "  $($disk.Name): " -NoNewline -ForegroundColor Gray
-                Write-Host "$($disk.FreeGB) GB free" -NoNewline -ForegroundColor White
-                Write-Host " ($($disk.Percentage)% used)" -ForegroundColor $color
+                Write-Host "  $($disk.Name): $($disk.FreeGB)GB free ($($disk.Percentage)% used)" -ForegroundColor $color
             }
         } else {
             Write-Host "  No disk information available" -ForegroundColor Yellow
@@ -58,7 +56,7 @@ function Show-SystemInfoBar {
         Write-Host ""
     }
     catch {
-        Write-Host "System info unavailable" -ForegroundColor Red
+        Write-Host "System information unavailable" -ForegroundColor Red
         Write-Host ""
     }
 }
@@ -76,15 +74,17 @@ function Show-Footer {
         if (Test-Path $versionPath) {
             $version = Get-Content $versionPath -Raw | ConvertFrom-Json
             $versionInfo = "v$($version.version) ($($version.channel))"
-        }
-        else {
+        } else {
             $versionInfo = "v1.0.0"
         }
+        
+        $sysInfo = Get-WKSystemInfo
         
         Write-Host ""
         Write-Host "------------------------------------------" -ForegroundColor DarkGray
         Write-Host "[INFO] $Status | " -NoNewline -ForegroundColor Cyan
         Write-Host "Version: $versionInfo | " -NoNewline -ForegroundColor Gray
+        Write-Host "Mode: $($sysInfo.Mode) | " -NoNewline -ForegroundColor $(if ($sysInfo.Mode -eq "Online") { "Green" } else { "Yellow" })
         Write-Host "Log: $global:WK_LOG" -ForegroundColor Gray
         Write-Host ""
     }
