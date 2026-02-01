@@ -1,12 +1,7 @@
 function Start-CleanSystem {
     Write-Host "=== Clean System ===" -ForegroundColor Cyan
     Write-Host ""
-    
-    Write-Host "This feature will clean:" -ForegroundColor Yellow
-    Write-Host "  - Temporary files" -ForegroundColor Gray
-    Write-Host "  - Windows Update cache" -ForegroundColor Gray
-    Write-Host "  - Prefetch files" -ForegroundColor Gray
-    Write-Host "  - System logs (optional)" -ForegroundColor Gray
+    Write-Host "This feature will clean temporary files and system caches." -ForegroundColor Gray
     Write-Host ""
     
     if (-not (Ask-WKConfirm "Do you want to proceed?")) {
@@ -48,21 +43,8 @@ function Start-CleanSystem {
     }
     
     Write-Host ""
-    if (Ask-WKConfirm "Clean system logs? (This may require administrative privileges)" -Dangerous) {
-        try {
-            wevtutil clear-log Application /quiet
-            wevtutil clear-log System /quiet
-            Write-WKSuccess "System logs cleared"
-        }
-        catch {
-            Write-WKWarn "Log clearing requires administrator privileges"
-        }
-    }
-    
-    Write-Host ""
-    Write-Host "=== Summary ===" -ForegroundColor Green
-    Write-WKSuccess "System cleanup completed successfully"
-    Write-WKInfo "Note: Some changes may require restart to take full effect."
+    Write-WKSuccess "System cleanup completed successfully!"
+    Write-Host "Note: Some changes may require restart to take full effect." -ForegroundColor Gray
     
     Write-Log -Message "CleanSystem feature executed" -Level "INFO"
 }
