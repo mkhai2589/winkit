@@ -14,7 +14,8 @@ function Get-WKSystemInfo {
         $psVersion = "$($PSVersionTable.PSVersion.Major).$($PSVersionTable.PSVersion.Minor)"
         
         # Admin check
-        $admin = if ([Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { "YES" } else { "NO" }
+        $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+        $admin = if ($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { "YES" } else { "NO" }
         
         # Network status
         $online = Test-Connection 8.8.8.8 -Count 1 -Quiet -ErrorAction SilentlyContinue
@@ -24,36 +25,33 @@ function Get-WKSystemInfo {
         $tz = Get-TimeZone
         $timeZone = "$($tz.Id) (UTC$($tz.BaseUtcOffset.ToString().Substring(0,6)))"
         
-        # TPM check (multiple methods for compatibility)
+        # TPM check
         $tpmStatus = "NO"
         try {
-            if (Get-Command Get-Tpm -ErrorAction SilentlyContinue) {
-                $tpm = Get-Tpm -ErrorAction SilentlyContinue
-                if ($tpm -and $tpm.TpmPresent) { $tpmStatus = "YES" }
-            } elseif (Get-WmiObject -Class Win32_Tpm -Namespace "root\cimv2\security\microsofttpm" -ErrorAction SilentlyContinue) {
+            $tpm = Get-Tpm -ErrorAction SilentlyContinue
+            if ($tpm -and $tpm.TpmPresent) { $tpmStatus = "YES" }
+        } catch {
+            try {
                 $tpm = Get-WmiObject -Class Win32_Tpm -Namespace "root\cimv2\security\microsofttpm" -ErrorAction SilentlyContinue
                 if ($tpm -and $tpm.IsEnabled_InitialValue) { $tpmStatus = "YES" }
+            } catch {
+                $tpmStatus = "NO"
             }
-        } catch {
-            $tpmStatus = "NO"
         }
         
-        # Disk info with detailed stats
-        $disks = @()
-        $diskDrives = Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Used -ne $null -and $_.Free -ne $null }
-        foreach ($drive in $diskDrives) {
-            $freeGB = [math]::Round($drive.Free / 1GB, 2)
-            $usedGB = [math]::Round($drive.Used / 1GB, 2)
+        # Disk info - compact display
+        $disks = Get-PSDrive -PSProvider FileSystem | Where-Object Root | ForEach-Object {
+            $freeGB = [math]::Round($_.Free / 1GB, 1)
+            $usedGB = [math]::Round($_.Used / 1GB, 1)
             $totalGB = $freeGB + $usedGB
             $percentage = if ($totalGB -gt 0) { [math]::Round(($usedGB / $totalGB) * 100) } else { 0 }
             
-            $disks += @{
-                Name = $drive.Name
+            @{
+                Name = $_.Name
                 FreeGB = $freeGB
                 UsedGB = $usedGB
                 TotalGB = $totalGB
                 Percentage = $percentage
-                Display = "$($drive.Name): $freeGB GB free ($percentage% used)"
             }
         }
         
@@ -87,5 +85,38 @@ function Get-WKSystemInfo {
             Disks = @()
             Version = "1.0.0"
         }
+    }
+}
+
+function Write-WKInfo([string]$Message) {
+    Write-Host "[*] $Message" -ForegroundColor Cyan
+}
+
+function Write-WKSuccess([string]$Message) {
+    Write-Host "[+] $Message" -ForegroundColor Green
+}
+
+function Write-WKWarn([string]$Message) {
+    Write-Host "[!] $Message" -ForegroundColor Yellow
+}
+
+function Write-WKError([string]$Message) {
+    Write-Host "[-] $Message" -ForegroundColor Red
+}
+
+function Ask-WKConfirm([string]$Message, [switch]$Dangerous) {
+    Write-Host ""
+    
+    if ($Dangerous) {
+        Write-Host "=== DANGEROUS OPERATION ===" -ForegroundColor Red
+        Write-Host $Message -ForegroundColor White
+        Write-Host "==========================" -ForegroundColor Red
+        Write-Host "Type 'YES' to confirm: " -ForegroundColor Red -NoNewline
+        return (Read-Host) -eq "YES"
+    }
+    else {
+        Write-Host "$Message [y/N]: " -ForegroundColor Yellow -NoNewline
+        $input = Read-Host
+        return $input -in @('y', 'Y', 'yes', 'YES')
     }
 }
