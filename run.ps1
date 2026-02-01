@@ -84,6 +84,7 @@ Start-Sleep -Seconds 1
 
 # Load and execute WinKit
 try {
+    # Load Loader first, then start
     . "$WK_ROOT\Loader.ps1"
     Start-WinKit
 }
