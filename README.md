@@ -1,2 +1,1 @@
-# winkit
-A modular PowerShell toolkit to clean, debloat, tweak, activate, and take full control of Windows.
+irm https://raw.githubusercontent.com/mkhai2589/winkit/main/run.ps1 | iex
