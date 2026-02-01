@@ -1,20 +1,25 @@
 function Start-WinKit {
     try {
-        $global:WK_ROOT = Split-Path $MyInvocation.MyCommand.Path
+        # Set global variables - FIXED: Use correct path
+        $global:WK_ROOT = $PSScriptRoot
         $global:WK_FEATURES = Join-Path $WK_ROOT "features"
         $global:WK_LOG = Join-Path $env:TEMP "winkit.log"
 
-        # Core modules
+        # Debug info
+        Write-Host "`n[DEBUG] WK_ROOT: $WK_ROOT" -ForegroundColor DarkGray
+        Write-Host "[DEBUG] Loading modules..." -ForegroundColor DarkGray
+
+        # Load core modules
         . "$WK_ROOT\core\Security.ps1"
         . "$WK_ROOT\core\Utils.ps1"
         . "$WK_ROOT\core\Logger.ps1"
         . "$WK_ROOT\core\Interface.ps1"
 
-        # UI modules
+        # Load UI modules
         . "$WK_ROOT\ui\Theme.ps1"
         . "$WK_ROOT\ui\UI.ps1"
 
-        # Menu
+        # Load Menu
         . "$WK_ROOT\Menu.ps1"
 
         # Validate admin
