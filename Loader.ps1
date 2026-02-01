@@ -11,20 +11,18 @@ function Start-WinKit {
         }
         
         # LOAD CORE MODULES IN CORRECT ORDER
-        # 1. Logger first (so Write-Log is available immediately)
         . "$WK_ROOT\core\Logger.ps1"
         Write-Log -Message "WinKit starting from: $WK_ROOT" -Level "INFO"
         
-        # 2. Load remaining core modules
         . "$WK_ROOT\core\Security.ps1"
         . "$WK_ROOT\core\Utils.ps1"
         . "$WK_ROOT\core\Interface.ps1"
         
-        # 3. Load UI modules
+        # LOAD UI MODULES
         . "$WK_ROOT\ui\Theme.ps1"
         . "$WK_ROOT\ui\UI.ps1"
         
-        # 4. Load Menu module
+        # LOAD MENU
         . "$WK_ROOT\Menu.ps1"
         
         # VALIDATE ADMINISTRATOR PRIVILEGES
@@ -38,13 +36,6 @@ function Start-WinKit {
         
     }
     catch {
-        # Try to log error if logger is available
-        try { 
-            Write-Log -Message "Fatal startup error: $_" -Level "ERROR" 
-        } 
-        catch {}
-        
-        # Show user-friendly error
         Write-Host "`nFATAL ERROR: $($_.Exception.Message)" -ForegroundColor Red
         Write-Host "`nPress Enter to exit..." -ForegroundColor Yellow
         $null = Read-Host
