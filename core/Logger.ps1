@@ -3,8 +3,10 @@
 # Simple file logging with timestamp
 # ==========================================
 
-# Set global log path
-$global:WK_LOG = Join-Path $env:TEMP "winkit.log"
+# Initialize global log path if not already set
+if (-not $global:WK_LOG) {
+    $global:WK_LOG = Join-Path $env:TEMP "winkit.log"
+}
 
 function Write-Log {
     param(
