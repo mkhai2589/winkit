@@ -28,7 +28,7 @@ $FILES = @(
     "ui/Theme.ps1",
     "ui/UI.ps1",
     "features/01_CleanSystem.ps1",
-    "features/02_Activation.ps1",
+    "features/02_ActivationTool.ps1",
     "features/03_Debloat.ps1",
     "features/04_Tweaks.ps1",
     "features/05_Network.ps1",
