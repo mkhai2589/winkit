@@ -1,8 +1,10 @@
 {
   "name": "WinKit",
-  "description": "Windows Optimization Toolkit",
   "version": "1.0.0",
+  "description": "Windows Optimization Toolkit - Console Edition",
   "author": "mkhai2589",
+  "repository": "https://github.com/mkhai2589/winkit",
+  
   "features": [
     {
       "id": "CleanSystem",
@@ -11,7 +13,7 @@
       "description": "Clean temporary files and system caches",
       "file": "01_CleanSystem.ps1",
       "requireAdmin": true,
-      "category": "Clean",
+      "category": "Maintenance",
       "dangerLevel": "Low"
     },
     {
@@ -28,10 +30,10 @@
       "id": "Debloat",
       "order": 3,
       "title": "Remove Bloatware",
-      "description": "Remove Windows bloatware and pre-installed apps",
+      "description": "Remove unnecessary Windows apps and features",
       "file": "03_Debloat.ps1",
       "requireAdmin": true,
-      "category": "System",
+      "category": "Optimization",
       "dangerLevel": "Medium"
     },
     {
@@ -41,7 +43,7 @@
       "description": "Performance and privacy tweaks",
       "file": "04_Tweaks.ps1",
       "requireAdmin": true,
-      "category": "Tweak",
+      "category": "Optimization",
       "dangerLevel": "Low"
     },
     {
@@ -61,7 +63,7 @@
       "description": "Install essential software packages",
       "file": "06_InstallApps.ps1",
       "requireAdmin": true,
-      "category": "Install",
+      "category": "Installation",
       "dangerLevel": "Low"
     },
     {
@@ -73,6 +75,79 @@
       "requireAdmin": true,
       "category": "AI",
       "dangerLevel": "High"
+    },
+    {
+      "id": "PowerPlan",
+      "order": 8,
+      "title": "Power Plan Tweaks",
+      "description": "Optimize power settings for performance",
+      "file": "08_PowerPlan.ps1",
+      "requireAdmin": true,
+      "category": "Optimization",
+      "dangerLevel": "Low"
+    },
+    {
+      "id": "Services",
+      "order": 9,
+      "title": "Services Optimization",
+      "description": "Configure Windows services for better performance",
+      "file": "09_Services.ps1",
+      "requireAdmin": true,
+      "category": "Optimization",
+      "dangerLevel": "Medium"
+    },
+    {
+      "id": "Privacy",
+      "order": 10,
+      "title": "Privacy Settings",
+      "description": "Disable telemetry and data collection",
+      "file": "10_Privacy.ps1",
+      "requireAdmin": true,
+      "category": "Privacy",
+      "dangerLevel": "Low"
+    },
+    {
+      "id": "Security",
+      "order": 11,
+      "title": "Security Hardening",
+      "description": "Enhance Windows security settings",
+      "file": "11_Security.ps1",
+      "requireAdmin": true,
+      "category": "Security",
+      "dangerLevel": "Medium"
+    },
+    {
+      "id": "Backup",
+      "order": 12,
+      "title": "System Backup",
+      "description": "Create system restore points and backups",
+      "file": "12_Backup.ps1",
+      "requireAdmin": true,
+      "category": "Maintenance",
+      "dangerLevel": "Low"
     }
-  ]
+  ],
+  
+  "ui": {
+    "colors": {
+      "header": "Cyan",
+      "menuItem": "Green",
+      "description": "Gray",
+      "warning": "Red",
+      "success": "Green",
+      "info": "Blue"
+    },
+    "layout": {
+      "maxWidth": 80,
+      "showBorders": true,
+      "showIcons": false
+    }
+  },
+  
+  "system": {
+    "minPSVersion": 5.1,
+    "supportedOS": [10, 11],
+    "requireAdmin": true,
+    "autoUpdate": false
+  }
 }
