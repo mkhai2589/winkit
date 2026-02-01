@@ -68,9 +68,9 @@ function Ask-WKConfirm {
     
     if ($Dangerous) {
         Write-Host "⚠️  DANGEROUS OPERATION" -ForegroundColor Red
-        Write-Host "=" * 50 -ForegroundColor DarkRed
+        Write-Host ("=" * 50) -ForegroundColor DarkRed
         Write-Host $Message -ForegroundColor White
-        Write-Host "=" * 50 -ForegroundColor DarkRed
+        Write-Host ("=" * 50) -ForegroundColor DarkRed
         Write-Host "Type 'YES' (uppercase) to confirm: " -ForegroundColor Red -NoNewline
         return (Read-Host) -eq "YES"
     }
@@ -137,15 +137,25 @@ function Show-WKProgress {
         [int]$Percent = -1
     )
     
-    if ($Percent -ge 0) {
-        Write-Progress -Activity $Activity -Status $Status -PercentComplete $Percent
+    try {
+        if ($Percent -ge 0) {
+            Write-Progress -Activity $Activity -Status $Status -PercentComplete $Percent
+        }
+        else {
+            Write-Progress -Activity $Activity -Status $Status
+        }
     }
-    else {
-        Write-Progress -Activity $Activity -Status $Status
+    catch {
+        # Silent fail for progress display
     }
 }
 
 function Complete-WKProgress {
-    Write-Progress -Completed
+    try {
+        Write-Progress -Completed
+    }
+    catch {
+        # Silent fail
+    }
 }
 #endregion
