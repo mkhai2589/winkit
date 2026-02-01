@@ -1,14 +1,16 @@
 # ==========================================
-# WinKit Feature: Clean System - SIMPLIFIED
+# WinKit Feature: Clean System
 # ==========================================
 
 function Start-CleanSystem {
-    Write-Host ""
+    Clear-Host
+    Initialize-UI
+    
     Write-Host "CLEAN SYSTEM" -ForegroundColor Cyan
-    Write-Host "-------------------------------------"
-
+    Write-Host "══════════════════════════════════════════" -ForegroundColor DarkGray
+    
     $options = @(
-        "Clean TEMP Folders",
+        "Clean Temporary Files",
         "Clean Windows Update Cache",
         "Clean Prefetch",
         "Clean Event Logs",
@@ -16,12 +18,14 @@ function Start-CleanSystem {
         "Back to Main Menu"
     )
     
+    Write-Host "`nSelect cleaning option:" -ForegroundColor White
+    
     for ($i = 0; $i -lt $options.Count; $i++) {
         Write-Host "[$($i+1)] $($options[$i])" -ForegroundColor Gray
     }
     
     Write-Host ""
-    $choice = Read-Host "Select option [1-6]"
+    $choice = Read-Host "Your choice [1-6]"
     
     switch ($choice) {
         "1" { Invoke-CleanTemp }
@@ -31,43 +35,46 @@ function Start-CleanSystem {
         "5" { Invoke-CleanAll }
         "6" { return }
         default {
-            Write-Host "Invalid selection" -ForegroundColor Red
-            Pause-WK
+            Write-Host "Invalid selection!" -ForegroundColor Red
+            Pause
             return
         }
     }
-    
-    Pause-WK
 }
 
+# Internal functions
 function Invoke-CleanTemp {
-    if (-not (Get-WKConfirm -Message "Clean temporary files?")) { return }
+    if (-not (Ask-WKConfirm "Clean temporary files from all locations?")) { return }
     
-    Write-Host "`nCleaning TEMP folders..." -ForegroundColor Cyan
+    Write-Host "`nCleaning temporary files..." -ForegroundColor Cyan
     
     $paths = @(
         "$env:TEMP\*",
         "$env:WINDIR\Temp\*",
-        "$env:LOCALAPPDATA\Temp\*"
+        "$env:LOCALAPPDATA\Temp\*",
+        "$env:ProgramData\Temp\*"
     )
     
+    $totalCleaned = 0
     foreach ($path in $paths) {
-        try {
-            if (Test-Path $path) {
+        if (Test-Path $path) {
+            try {
                 Remove-Item $path -Recurse -Force -ErrorAction SilentlyContinue
+                Write-Host "  ✓ Cleaned: $path" -ForegroundColor Green
+                $totalCleaned++
             }
-        }
-        catch {
-            Write-Host "  Warning: Could not clean $path" -ForegroundColor Yellow
+            catch {
+                Write-Host "  ✗ Failed: $path" -ForegroundColor Yellow
+            }
         }
     }
     
-    Write-Host "TEMP folders cleaned." -ForegroundColor Green
-    Write-WKLog -Message "TEMP folders cleaned" -Level INFO -Feature "CleanSystem"
+    Write-Host "`nCleaned $totalCleaned temporary locations." -ForegroundColor Green
+    Write-Log -Message "Cleaned temporary files" -Level "INFO"
 }
 
 function Invoke-CleanWindowsUpdate {
-    if (-not (Get-WKConfirm -Message "Clean Windows Update cache?")) { return }
+    if (-not (Ask-WKConfirm "Clean Windows Update cache? This will restart Windows Update services.")) { return }
     
     Write-Host "`nCleaning Windows Update cache..." -ForegroundColor Cyan
     
@@ -80,82 +87,85 @@ function Invoke-CleanWindowsUpdate {
         $downloadPath = "$env:WINDIR\SoftwareDistribution\Download"
         if (Test-Path $downloadPath) {
             Remove-Item "$downloadPath\*" -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Host "  ✓ Cleaned download cache" -ForegroundColor Green
         }
         
         # Restart services
         Start-Service wuauserv -ErrorAction SilentlyContinue
         Start-Service bits -ErrorAction SilentlyContinue
+        Write-Host "  ✓ Restarted Windows Update services" -ForegroundColor Green
         
-        Write-Host "Windows Update cache cleaned." -ForegroundColor Green
-        Write-WKLog -Message "Windows Update cache cleaned" -Level INFO -Feature "CleanSystem"
+        Write-Host "`nWindows Update cache cleaned successfully." -ForegroundColor Green
+        Write-Log -Message "Cleaned Windows Update cache" -Level "INFO"
     }
     catch {
-        Write-Host "Error: $_" -ForegroundColor Red
-        Write-WKLog -Message "Error cleaning Windows Update: $_" -Level ERROR -Feature "CleanSystem"
+        Write-Host "`n✗ Error cleaning Windows Update cache: $_" -ForegroundColor Red
+        Write-Log -Message "Error cleaning Windows Update cache: $_" -Level "ERROR"
     }
 }
 
 function Invoke-CleanPrefetch {
-    if (-not (Get-WKConfirm -Message "Clean Prefetch?")) { return }
+    if (-not (Ask-WKConfirm "Clean Prefetch files? This may affect boot optimization.")) { return }
     
     Write-Host "`nCleaning Prefetch..." -ForegroundColor Cyan
     
-    try {
-        $prefetchPath = "$env:WINDIR\Prefetch"
-        if (Test-Path $prefetchPath) {
-            Remove-Item "$prefetchPath\*" -Recurse -Force -ErrorAction SilentlyContinue
+    $prefetchPath = "$env:WINDIR\Prefetch"
+    if (Test-Path $prefetchPath) {
+        try {
+            Remove-Item "$prefetchPath\*" -Force -ErrorAction SilentlyContinue
+            Write-Host "  ✓ Cleaned Prefetch files" -ForegroundColor Green
+            Write-Log -Message "Cleaned Prefetch" -Level "INFO"
         }
-        
-        Write-Host "Prefetch cleaned." -ForegroundColor Green
-        Write-WKLog -Message "Prefetch cleaned" -Level INFO -Feature "CleanSystem"
+        catch {
+            Write-Host "  ✗ Failed to clean Prefetch" -ForegroundColor Yellow
+        }
     }
-    catch {
-        Write-Host "Error: $_" -ForegroundColor Red
-        Write-WKLog -Message "Error cleaning Prefetch: $_" -Level ERROR -Feature "CleanSystem"
+    else {
+        Write-Host "  ✗ Prefetch directory not found" -ForegroundColor Yellow
     }
 }
 
 function Invoke-CleanEventLogs {
-    if (-not (Get-WKConfirm -Message "Clear Event Logs?" -Dangerous)) { return }
+    if (-not (Ask-WKConfirm "Clear ALL Event Logs? This action cannot be undone." -Dangerous)) { return }
     
-    Write-Host "`nCleaning Event Logs..." -ForegroundColor Cyan
+    Write-Host "`nClearing Event Logs..." -ForegroundColor Cyan
     
     try {
-        Get-WinEvent -ListLog * | ForEach-Object {
+        wevtutil el | ForEach-Object {
             try {
-                Clear-EventLog -LogName $_.LogName -ErrorAction SilentlyContinue
+                wevtutil cl $_ 2>$null
             }
             catch {}
         }
         
-        Write-Host "Event Logs cleared." -ForegroundColor Green
-        Write-WKLog -Message "Event Logs cleared" -Level INFO -Feature "CleanSystem"
+        Write-Host "  ✓ Event Logs cleared" -ForegroundColor Green
+        Write-Log -Message "Cleared Event Logs" -Level "INFO"
     }
     catch {
-        Write-Host "Error: $_" -ForegroundColor Red
-        Write-WKLog -Message "Error clearing Event Logs: $_" -Level ERROR -Feature "CleanSystem"
+        Write-Host "  ✗ Failed to clear Event Logs" -ForegroundColor Red
+        Write-Log -Message "Error clearing Event Logs: $_" -Level "ERROR"
     }
 }
 
 function Invoke-CleanAll {
-    if (-not (Get-WKConfirm -Message "Run ALL system cleanups?" -Dangerous)) { return }
+    if (-not (Ask-WKConfirm "Run ALL system cleanups? This includes temporary files, update cache, prefetch, and event logs." -Dangerous)) { return }
     
-    Write-Host "`nStarting full system cleanup..." -ForegroundColor Cyan
-    Show-WKProgress -Activity "System Cleanup" -Status "Starting..."
+    Write-Host "`nStarting comprehensive system cleanup..." -ForegroundColor Cyan
+    Show-WKProgress -Activity "System Cleanup" -Status "Initializing..."
     
+    Show-WKProgress -Activity "System Cleanup" -Status "Cleaning temporary files..." -Percent 20
     Invoke-CleanTemp
-    Show-WKProgress -Activity "System Cleanup" -Status "Cleaning TEMP..." -PercentComplete 25
     
+    Show-WKProgress -Activity "System Cleanup" -Status "Cleaning Windows Update cache..." -Percent 40
     Invoke-CleanWindowsUpdate
-    Show-WKProgress -Activity "System Cleanup" -Status "Cleaning Windows Update..." -PercentComplete 50
     
+    Show-WKProgress -Activity "System Cleanup" -Status "Cleaning Prefetch..." -Percent 60
     Invoke-CleanPrefetch
-    Show-WKProgress -Activity "System Cleanup" -Status "Cleaning Prefetch..." -PercentComplete 75
     
+    Show-WKProgress -Activity "System Cleanup" -Status "Cleaning Event Logs..." -Percent 80
     Invoke-CleanEventLogs
-    Show-WKProgress -Activity "System Cleanup" -Status "Cleaning Event Logs..." -PercentComplete 90
     
     Complete-WKProgress
-    Write-Host "`nAll cleanups completed successfully!" -ForegroundColor Green
-    Write-WKLog -Message "Full system cleanup completed" -Level INFO -Feature "CleanSystem"
+    Write-Host "`n✓ All system cleanups completed successfully!" -ForegroundColor Green
+    Write-Log -Message "Completed full system cleanup" -Level "INFO"
 }
