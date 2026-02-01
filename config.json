@@ -12,52 +12,28 @@
       "category": "Maintenance"
     },
     {
-      "id": "Activation",
-      "order": 2,
-      "title": "Windows Activation",
-      "file": "02_Activation.ps1",
-      "requireAdmin": true,
-      "category": "System"
-    },
-    {
       "id": "Debloat",
-      "order": 3,
-      "title": "Remove Bloatware",
+      "order": 2,
+      "title": "Debloat Windows",
       "file": "03_Debloat.ps1",
       "requireAdmin": true,
       "category": "Optimization"
     },
     {
-      "id": "Tweaks",
-      "order": 4,
-      "title": "System Tweaks",
-      "file": "04_Tweaks.ps1",
-      "requireAdmin": true,
-      "category": "Optimization"
-    },
-    {
       "id": "Network",
-      "order": 5,
-      "title": "Network Settings",
+      "order": 3,
+      "title": "Network Optimization",
       "file": "05_Network.ps1",
       "requireAdmin": true,
       "category": "Network"
     },
     {
       "id": "InstallApps",
-      "order": 6,
+      "order": 4,
       "title": "Install Applications",
       "file": "06_InstallApps.ps1",
       "requireAdmin": true,
       "category": "Installation"
-    },
-    {
-      "id": "RemoveWindowsAI",
-      "order": 7,
-      "title": "Remove Windows AI",
-      "file": "07_RemoveWindowsAI.ps1",
-      "requireAdmin": true,
-      "category": "AI"
     }
   ]
 }
