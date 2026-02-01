@@ -1,32 +1,50 @@
 function Start-WinKit {
     try {
+        # SET GLOBAL PATHS FIRST
         $global:WK_ROOT = $PSScriptRoot
         $global:WK_FEATURES = Join-Path $WK_ROOT "features"
         $global:WK_LOG = Join-Path $env:TEMP "winkit.log"
         
+        # LOAD CORE MODULES IN CORRECT ORDER
+        # 1. Logger first (so Write-Log is available immediately)
+        . "$WK_ROOT\core\Logger.ps1"
         Write-Log -Message "WinKit starting from: $WK_ROOT" -Level "INFO"
         
+        # 2. Load remaining core modules
         . "$WK_ROOT\core\Security.ps1"
         . "$WK_ROOT\core\Utils.ps1"
         . "$WK_ROOT\core\Interface.ps1"
         
+        # 3. Load UI modules
         . "$WK_ROOT\ui\Theme.ps1"
         . "$WK_ROOT\ui\UI.ps1"
         
-        Test-WKAdmin
-        
+        # 4. Load Menu module
         . "$WK_ROOT\Menu.ps1"
         
+        # VALIDATE ADMINISTRATOR PRIVILEGES
+        Write-Log -Message "Checking administrator privileges..." -Level "DEBUG"
+        Test-WKAdmin
+        
+        Write-Log -Message "All modules loaded successfully" -Level "INFO"
+        
+        # START USER INTERFACE
         Initialize-UI
         Show-MainMenu
+        
     }
     catch {
-        Write-Host "FATAL ERROR: $_" -ForegroundColor Red
+        # Try to log error if logger is available
+        try { 
+            Write-Log -Message "Fatal startup error: $_" -Level "ERROR" 
+            Write-Log -Message "Error details: $($_.Exception.StackTrace)" -Level "DEBUG"
+        } 
+        catch {}
+        
+        # Show user-friendly error
+        Write-Host "`nFATAL ERROR: $($_.Exception.Message)" -ForegroundColor Red
         Write-Host "`nPress Enter to exit..." -ForegroundColor Yellow
-        $null = Read-Host
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
         exit 1
     }
 }
-
-# Import Logger first
-. "$PSScriptRoot\core\Logger.ps1"
