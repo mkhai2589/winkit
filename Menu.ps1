@@ -4,41 +4,63 @@ function Show-MainMenu {
             Clear-Host
             Show-Header
             Show-SystemInfoBar
-            Show-MainMenuTitle
             
-            # Load menu from config.json (data-driven)
-            $configPath = Join-Path $global:WK_ROOT "config.json"
-            if (-not (Test-Path $configPath)) {
-                throw "Configuration file not found at: $configPath"
-            }
+            # LOAD CONFIGURATION
+            $config = Read-Json -Path (Join-Path $global:WK_ROOT "config.json")
             
-            $config = Read-Json -Path $configPath
-            $features = $config.features | Sort-Object order
-            
-            # Filter only features that have corresponding files
+            # GET AVAILABLE FEATURES
             $availableFeatures = @()
-            foreach ($feature in $features) {
+            foreach ($feature in $config.features) {
                 $featurePath = Join-Path $global:WK_FEATURES $feature.file
                 if (Test-Path $featurePath) {
                     $availableFeatures += $feature
                 }
             }
             
-            # Display menu - only number and title (no description)
-            foreach ($feature in $availableFeatures) {
-                Write-Host "  [$($feature.order)]. " -NoNewline -ForegroundColor Green
-                Write-Host $feature.title -ForegroundColor White
+            # GROUP FEATURES BY CATEGORY
+            $quickActions = $availableFeatures | Where-Object { $_.category -eq "QuickActions" } | Sort-Object order
+            $advanced = $availableFeatures | Where-Object { $_.category -eq "Advanced" } | Sort-Object order
+            
+            # DISPLAY QUICK ACTIONS
+            if ($quickActions.Count -gt 0) {
                 Write-Host ""
+                Write-Host "[ QUICK ACTIONS ]" -ForegroundColor Green
+                Write-Host ""
+                
+                foreach ($feature in $quickActions) {
+                    $recommended = if ($feature.recommended) { " (Recommended)" } else { "" }
+                    Write-Host " [$($feature.order)] $($feature.title)$recommended" -ForegroundColor White
+                }
             }
             
-            Write-Host "  [0]. " -NoNewline -ForegroundColor Red
-            Write-Host "Exit" -ForegroundColor White
+            # DISPLAY ADVANCED
+            if ($advanced.Count -gt 0) {
+                Write-Host ""
+                Write-Host "[ ADVANCED ]" -ForegroundColor Yellow
+                Write-Host ""
+                
+                foreach ($feature in $advanced) {
+                    $danger = switch ($feature.dangerLevel) {
+                        "High" { " (!) " }
+                        "Medium" { " (?) " }
+                        default { " " }
+                    }
+                    Write-Host " [$($feature.order)]$danger$($feature.title)" -ForegroundColor White
+                }
+            }
+            
+            # EXIT OPTION
+            Write-Host ""
+            Write-Host "------------------------------------------" -ForegroundColor DarkGray
+            Write-Host " [0] Exit" -ForegroundColor Gray
             Write-Host ""
             
+            # FOOTER
             Show-Footer -Status "Ready"
             
-            # Get user input
-            Write-Host "Select an option [0-$($availableFeatures[-1].order)]: " -NoNewline -ForegroundColor Yellow
+            # USER INPUT
+            $maxOption = ($availableFeatures | Measure-Object -Property order -Maximum).Maximum
+            Write-Host "Select an option [0-$maxOption]: " -NoNewline -ForegroundColor Yellow
             $choice = Read-Host
             
             if ($choice -eq "0") {
@@ -46,7 +68,6 @@ function Show-MainMenu {
                 exit 0
             }
             
-            # Validate input
             if (-not ($choice -match '^\d+$')) {
                 Write-Host "`nInvalid input! Please enter a number." -ForegroundColor Red
                 Pause
@@ -62,6 +83,7 @@ function Show-MainMenu {
             }
             
             Execute-Feature -Feature $selectedFeature
+            
         }
         catch {
             Write-Host "`nMenu Error: $_" -ForegroundColor Red
@@ -70,38 +92,35 @@ function Show-MainMenu {
     }
 }
 
-function Execute-Feature {
-    param([PSCustomObject]$Feature)
-    
+function Execute-Feature([PSCustomObject]$Feature) {
     try {
         Clear-Host
         Write-Host "=== $($Feature.title) ===" -ForegroundColor Cyan
+        
+        if ($Feature.description) {
+            Write-Host "$($Feature.description)" -ForegroundColor Gray
+        }
+        
         Write-Host ""
         
+        # LOAD FEATURE FILE
         $featurePath = Join-Path $global:WK_FEATURES $Feature.file
         
         if (-not (Test-Path $featurePath)) {
             throw "Feature file not found: $featurePath"
         }
         
-        # Dynamically load feature
         . $featurePath
         
+        # EXECUTE FEATURE FUNCTION
         $functionName = "Start-$($Feature.id)"
         
         if (Get-Command $functionName -ErrorAction SilentlyContinue) {
-            # Update footer to show running status
-            Show-Footer -Status "Running: $($Feature.title)"
-            Write-Host ""
-            
-            # Execute feature
             & $functionName
-            
-            # Log execution
             Write-Log -Message "Feature executed: $($Feature.id)" -Level "INFO"
         }
         else {
-            throw "Feature function '$functionName' not found in $($Feature.file)"
+            throw "Function $functionName not found"
         }
     }
     catch {
@@ -110,6 +129,13 @@ function Execute-Feature {
     }
     finally {
         Write-Host ""
-        Pause -Message "Press any key to return to menu..."
+        Pause -Message "Press any key to return to main menu..."
     }
+}
+
+function Show-Footer([string]$Status = "Ready") {
+    Write-Host ""
+    Write-Host "------------------------------------------" -ForegroundColor DarkGray
+    Write-Host "[INFO] $Status | Log: $global:WK_LOG" -ForegroundColor Cyan
+    Write-Host ""
 }
