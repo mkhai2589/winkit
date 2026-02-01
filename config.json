@@ -2,38 +2,64 @@
   "name": "WinKit",
   "version": "1.0.0",
   "description": "Windows Optimization Toolkit",
+  "ui": {
+    "categoryOrder": ["QuickActions", "Advanced"]
+  },
   "features": [
     {
       "id": "CleanSystem",
       "order": 1,
       "title": "Clean System",
+      "description": "Clean temporary files and system caches",
       "file": "01_CleanSystem.ps1",
       "requireAdmin": true,
-      "category": "Maintenance"
+      "category": "QuickActions",
+      "dangerLevel": "Low",
+      "recommended": true
     },
     {
       "id": "Debloat",
       "order": 2,
       "title": "Debloat Windows",
+      "description": "Remove unnecessary Windows apps and features",
       "file": "03_Debloat.ps1",
       "requireAdmin": true,
-      "category": "Optimization"
+      "category": "QuickActions",
+      "dangerLevel": "Medium",
+      "recommended": true
     },
     {
       "id": "Network",
       "order": 3,
-      "title": "Network Optimization",
+      "title": "Optimize Network",
+      "description": "Configure DNS and network optimizations",
       "file": "05_Network.ps1",
       "requireAdmin": true,
-      "category": "Network"
+      "category": "QuickActions",
+      "dangerLevel": "Low",
+      "recommended": true
     },
     {
       "id": "InstallApps",
       "order": 4,
       "title": "Install Applications",
+      "description": "Install essential software packages",
       "file": "06_InstallApps.ps1",
       "requireAdmin": true,
-      "category": "Installation"
+      "category": "Advanced",
+      "dangerLevel": "Low",
+      "recommended": false
+    },
+    {
+      "id": "RemoveWindowsAI",
+      "order": 5,
+      "title": "Remove Windows AI",
+      "description": "Remove Copilot, Recall, and AI features",
+      "file": "07_RemoveWindowsAI.ps1",
+      "requireAdmin": true,
+      "category": "Advanced",
+      "dangerLevel": "High",
+      "recommended": false
     }
   ]
 }
