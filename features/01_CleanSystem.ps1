@@ -42,7 +42,7 @@ function Start-CleanSystem {
     }
 }
 
-# Internal functions
+# Internal functions with safe logging
 function Invoke-CleanTemp {
     if (-not (Ask-WKConfirm "Clean temporary files from all locations?")) { return }
     
@@ -70,7 +70,7 @@ function Invoke-CleanTemp {
     }
     
     Write-Host "`nCleaned $totalCleaned temporary locations." -ForegroundColor Green
-    Write-Log -Message "Cleaned temporary files" -Level "INFO"
+    try { Write-Log -Message "Cleaned temporary files" -Level "INFO" } catch {}
 }
 
 function Invoke-CleanWindowsUpdate {
@@ -96,11 +96,11 @@ function Invoke-CleanWindowsUpdate {
         Write-Host "  ✓ Restarted Windows Update services" -ForegroundColor Green
         
         Write-Host "`nWindows Update cache cleaned successfully." -ForegroundColor Green
-        Write-Log -Message "Cleaned Windows Update cache" -Level "INFO"
+        try { Write-Log -Message "Cleaned Windows Update cache" -Level "INFO" } catch {}
     }
     catch {
         Write-Host "`n✗ Error cleaning Windows Update cache: $_" -ForegroundColor Red
-        Write-Log -Message "Error cleaning Windows Update cache: $_" -Level "ERROR"
+        try { Write-Log -Message "Error cleaning Windows Update cache: $_" -Level "ERROR" } catch {}
     }
 }
 
@@ -114,7 +114,7 @@ function Invoke-CleanPrefetch {
         try {
             Remove-Item "$prefetchPath\*" -Force -ErrorAction SilentlyContinue
             Write-Host "  ✓ Cleaned Prefetch files" -ForegroundColor Green
-            Write-Log -Message "Cleaned Prefetch" -Level "INFO"
+            try { Write-Log -Message "Cleaned Prefetch" -Level "INFO" } catch {}
         }
         catch {
             Write-Host "  ✗ Failed to clean Prefetch" -ForegroundColor Yellow
@@ -139,11 +139,11 @@ function Invoke-CleanEventLogs {
         }
         
         Write-Host "  ✓ Event Logs cleared" -ForegroundColor Green
-        Write-Log -Message "Cleared Event Logs" -Level "INFO"
+        try { Write-Log -Message "Cleared Event Logs" -Level "INFO" } catch {}
     }
     catch {
         Write-Host "  ✗ Failed to clear Event Logs" -ForegroundColor Red
-        Write-Log -Message "Error clearing Event Logs: $_" -Level "ERROR"
+        try { Write-Log -Message "Error clearing Event Logs: $_" -Level "ERROR" } catch {}
     }
 }
 
@@ -151,21 +151,21 @@ function Invoke-CleanAll {
     if (-not (Ask-WKConfirm "Run ALL system cleanups? This includes temporary files, update cache, prefetch, and event logs." -Dangerous)) { return }
     
     Write-Host "`nStarting comprehensive system cleanup..." -ForegroundColor Cyan
-    Show-WKProgress -Activity "System Cleanup" -Status "Initializing..."
+    try { Show-WKProgress -Activity "System Cleanup" -Status "Initializing..." } catch {}
     
-    Show-WKProgress -Activity "System Cleanup" -Status "Cleaning temporary files..." -Percent 20
+    try { Show-WKProgress -Activity "System Cleanup" -Status "Cleaning temporary files..." -Percent 20 } catch {}
     Invoke-CleanTemp
     
-    Show-WKProgress -Activity "System Cleanup" -Status "Cleaning Windows Update cache..." -Percent 40
+    try { Show-WKProgress -Activity "System Cleanup" -Status "Cleaning Windows Update cache..." -Percent 40 } catch {}
     Invoke-CleanWindowsUpdate
     
-    Show-WKProgress -Activity "System Cleanup" -Status "Cleaning Prefetch..." -Percent 60
+    try { Show-WKProgress -Activity "System Cleanup" -Status "Cleaning Prefetch..." -Percent 60 } catch {}
     Invoke-CleanPrefetch
     
-    Show-WKProgress -Activity "System Cleanup" -Status "Cleaning Event Logs..." -Percent 80
+    try { Show-WKProgress -Activity "System Cleanup" -Status "Cleaning Event Logs..." -Percent 80 } catch {}
     Invoke-CleanEventLogs
     
-    Complete-WKProgress
+    try { Complete-WKProgress } catch {}
     Write-Host "`n✓ All system cleanups completed successfully!" -ForegroundColor Green
-    Write-Log -Message "Completed full system cleanup" -Level "INFO"
+    try { Write-Log -Message "Completed full system cleanup" -Level "INFO" } catch {}
 }
