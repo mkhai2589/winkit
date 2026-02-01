@@ -1,52 +1,32 @@
-# ================================
-# WinKit Loader
-# ================================
-
 $Global:WinKitModules = @()
 
 function Load-WinKitModules {
 
     $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $modulesPath = Join-Path $root "modules"
+    $modulesRoot = Join-Path $root "modules"
 
-    if (-not (Test-Path $modulesPath)) {
-        Write-Host "[ERROR] modules folder not found" -ForegroundColor Red
-        return
-    }
+    $jsonFiles = Get-ChildItem $modulesRoot -Recurse -Filter module.json
 
-    $jsonFiles = Get-ChildItem -Path $modulesPath -Recurse -Filter "module.json"
-
-    foreach ($json in $jsonFiles) {
+    foreach ($file in $jsonFiles) {
         try {
-            $data = Get-Content $json.FullName -Raw | ConvertFrom-Json
+            $m = Get-Content $file.FullName -Raw | ConvertFrom-Json
+            $modulePath = Split-Path $file.FullName -Parent
+            $entryPath  = Join-Path $modulePath $m.entry
 
-            if (-not ($data.id -and $data.name -and $data.entry)) {
-                Write-Host "[SKIP] Invalid module.json: $($json.FullName)" -ForegroundColor DarkYellow
-                continue
-            }
-
-            $moduleRoot = Split-Path $json.FullName -Parent
-            $entryPath  = Join-Path $moduleRoot $data.entry
-
-            if (-not (Test-Path $entryPath)) {
-                Write-Host "[SKIP] Entry file not found: $entryPath" -ForegroundColor DarkYellow
-                continue
-            }
+            if (-not (Test-Path $entryPath)) { continue }
 
             $Global:WinKitModules += [PSCustomObject]@{
-                Id            = [int]$data.id
-                Name          = $data.name
-                Category      = $data.category
-                RequireAdmin  = $data.requireAdmin
-                Support       = $data.support
-                Entry         = $entryPath
+                Id           = [int]$m.id
+                Name         = $m.name
+                Category     = $m.category
+                Description  = $m.description
+                Version      = $m.version
+                RequireAdmin = $m.requireAdmin
+                SupportedOS  = $m.supportedOS
+                Entry        = $entryPath
             }
-
-        } catch {
-            Write-Host "[ERROR] Failed to load $($json.FullName)" -ForegroundColor Red
-        }
+        } catch {}
     }
 
-    # Sort by menu id
     $Global:WinKitModules = $Global:WinKitModules | Sort-Object Id
 }
