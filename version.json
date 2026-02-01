@@ -1,9 +1,5 @@
 {
-  "name": "WinKit",
   "version": "1.0.0",
-  "build": "2024.01.01",
-  "channel": "stable",
-  "author": "mkhai2589",
-  "repository": "https://github.com/mkhai2589/winkit",
-  "updateUrl": "https://raw.githubusercontent.com/mkhai2589/winkit/main/version.json"
+  "build": "2026.01.01",
+  "channel": "stable"
 }
