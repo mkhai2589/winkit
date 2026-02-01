@@ -1,105 +1,184 @@
 # ==========================================
 # WinKit Main Menu Module
-# Data-driven menu system
+# Data-driven menu system - NO HARD-CODED PATHS
 # ==========================================
 
 function Show-MainMenu {
+    # Main loop - keeps returning to menu until exit
     while ($true) {
         try {
             Clear-Host
-            Initialize-UI
-            Show-Header
             
-            # Load menu configuration
-            $configPath = Join-Path $WK_ROOT "config.json"
+            # Initialize UI components
+            Initialize-UI
+            
+            # ===== LOAD CONFIGURATION =====
+            # Build path using GLOBAL variable
+            $configPath = Join-Path $global:WK_ROOT "config.json"
+            
+            # Validate config file exists
             if (-not (Test-Path $configPath)) {
-                throw "Configuration file not found at: $configPath"
+                throw "Configuration file not found.`nExpected at: $configPath"
             }
             
+            # Read configuration
             $config = Read-Json -Path $configPath
             $features = $config.features | Sort-Object order
             
-            # Display menu items
-            Write-Host "`nMAIN MENU" -ForegroundColor $WK_THEME.Accent
-            Write-Host "══════════════════════════════════════════" -ForegroundColor $WK_THEME.Border
+            # ===== DISPLAY HEADER =====
+            Write-Host "┌─────────────────────────────────────────────────────┐" -ForegroundColor DarkGray
+            Write-Host "│" -NoNewline -ForegroundColor DarkGray
+            Write-Host "                    MAIN MENU                         " -NoNewline -ForegroundColor Cyan
+            Write-Host "│" -ForegroundColor DarkGray
+            Write-Host "├─────────────────────────────────────────────────────┤" -ForegroundColor DarkGray
             
+            # ===== DISPLAY FEATURES =====
             foreach ($feature in $features) {
-                Write-Host "[$($feature.order)]" -NoNewline -ForegroundColor $WK_THEME.MenuItem
-                Write-Host " $($feature.title)" -ForegroundColor $WK_THEME.Primary
+                # Format: [ORDER] TITLE
+                Write-Host "│ " -NoNewline -ForegroundColor DarkGray
+                Write-Host "[$($feature.order)]" -NoNewline -ForegroundColor Green
+                Write-Host " $($feature.title)" -ForegroundColor White
                 
+                # Display description if available
                 if ($feature.description) {
-                    Write-Host "    $($feature.description)" -ForegroundColor $WK_THEME.Description
+                    Write-Host "│   " -NoNewline -ForegroundColor DarkGray
+                    Write-Host "$($feature.description)" -ForegroundColor Gray
                 }
                 
-                Write-Host ""
+                # Optional: Show admin requirement
+                if ($feature.requireAdmin) {
+                    Write-Host "│   " -NoNewline -ForegroundColor DarkGray
+                    Write-Host "[Requires Admin]" -ForegroundColor DarkYellow
+                }
+                
+                Write-Host "│" -ForegroundColor DarkGray
             }
             
-            Write-Host "[0]" -NoNewline -ForegroundColor $WK_THEME.Error
-            Write-Host " Exit" -ForegroundColor $WK_THEME.Primary
+            # ===== DISPLAY FOOTER =====
+            Write-Host "├─────────────────────────────────────────────────────┤" -ForegroundColor DarkGray
+            Write-Host "│ " -NoNewline -ForegroundColor DarkGray
+            Write-Host "[0]" -NoNewline -ForegroundColor Red
+            Write-Host " Exit" -ForegroundColor White
+            Write-Host "└─────────────────────────────────────────────────────┘" -ForegroundColor DarkGray
             
-            Show-Footer
+            # Show version info
+            Write-Host ""
+            Write-Host "WinKit v1.0.0" -ForegroundColor DarkGray
+            Write-Host "───────────────────────────────────────────────────────" -ForegroundColor DarkGray
             
-            # Get user input
-            Write-Host "`nSelect option: " -NoNewline -ForegroundColor $WK_THEME.Accent
-            $choice = Read-Host
+            # ===== GET USER INPUT =====
+            Write-Host ""
+            $choice = Read-Host "Select option (0-$($features[-1].order))"
             
+            # Handle exit
             if ($choice -eq "0") {
-                try { Write-Log -Message "User exited application" -Level "INFO" } catch {}
+                Write-Host "`nExiting WinKit..." -ForegroundColor Cyan
+                Start-Sleep -Milliseconds 500
                 exit 0
             }
             
-            # Find selected feature
-            $selected = $features | Where-Object { $_.order -eq [int]$choice }
-            
-            if (-not $selected) {
-                Write-Host "`nInvalid selection!" -ForegroundColor $WK_THEME.Error
+            # Validate input
+            if (-not ($choice -match '^\d+$')) {
+                Write-Host "`nInvalid input! Please enter a number." -ForegroundColor Red
                 Pause
                 continue
             }
             
-            # Execute selected feature
-            Invoke-Feature -Feature $selected
+            # Find selected feature
+            $selectedFeature = $features | Where-Object { $_.order -eq [int]$choice }
+            
+            if (-not $selectedFeature) {
+                Write-Host "`nOption $choice not available!" -ForegroundColor Red
+                Pause
+                continue
+            }
+            
+            # ===== EXECUTE SELECTED FEATURE =====
+            Execute-Feature -Feature $selectedFeature
             
         }
         catch {
-            Write-Host "`nMenu Error: $_" -ForegroundColor $WK_THEME.Error
-            Pause
+            # Error handling for menu display
+            Write-Host "`nMENU ERROR: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host "Returning to main menu in 3 seconds..." -ForegroundColor Yellow
+            Start-Sleep -Seconds 3
         }
     }
 }
 
-function Invoke-Feature {
+function Execute-Feature {
     param(
         [Parameter(Mandatory=$true)]
         [PSCustomObject]$Feature
     )
     
     try {
-        # Check if feature file exists
-        $featurePath = Join-Path $WK_FEATURES $Feature.file
-        if (-not (Test-Path $featurePath)) {
-            throw "Feature file not found: $featurePath"
+        # Clear screen for feature execution
+        Clear-Host
+        
+        # Show feature header
+        Write-Host "╔══════════════════════════════════════════╗" -ForegroundColor Cyan
+        Write-Host "║" -NoNewline -ForegroundColor Cyan
+        Write-Host "          $($Feature.title.PadRight(38))" -NoNewline -ForegroundColor White
+        Write-Host "║" -ForegroundColor Cyan
+        Write-Host "╚══════════════════════════════════════════╝" -ForegroundColor Cyan
+        
+        if ($Feature.description) {
+            Write-Host "$($Feature.description)" -ForegroundColor Gray
+            Write-Host ""
         }
         
-        # Load feature module
+        # Build feature file path
+        $featurePath = Join-Path $global:WK_FEATURES $Feature.file
+        
+        # Validate feature file exists
+        if (-not (Test-Path $featurePath)) {
+            throw "Feature file not found:`n$featurePath"
+        }
+        
+        # Load the feature file
+        Write-Host "Loading feature module..." -ForegroundColor DarkGray
         . $featurePath
         
-        # Execute feature function
+        # Construct function name (e.g., Start-CleanSystem)
         $functionName = "Start-$($Feature.id)"
+        
+        # Check if function exists
         if (Get-Command $functionName -ErrorAction SilentlyContinue) {
-            try { Write-Log -Message "Executing feature: $($Feature.id)" -Level "INFO" } catch {}
+            # Execute the feature
+            Write-Host "Executing..." -ForegroundColor DarkGray
+            Write-Host "───────────────────────────────────────────────────────" -ForegroundColor DarkGray
+            Write-Host ""
+            
             & $functionName
+            
+            # Log successful execution
+            try { Write-Log -Message "Feature executed: $($Feature.id)" -Level "INFO" } catch {}
         }
         else {
-            throw "Feature function '$functionName' not found"
+            throw "Feature function '$functionName' not found in $($Feature.file)"
         }
+        
     }
     catch {
-        Write-Host "`nFeature Error: $_" -ForegroundColor $WK_THEME.Error
-        try { Write-Log -Message "Feature execution failed: $_" -Level "ERROR" } catch {}
+        # Feature execution error
+        Write-Host "`nFEATURE ERROR: $($_.Exception.Message)" -ForegroundColor Red
+        
+        # Try to log the error
+        try { Write-Log -Message "Feature execution failed: $($Feature.id) - $_" -Level "ERROR" } catch {}
     }
-    
-    # Return to menu
-    Write-Host "`n" -NoNewline
-    Pause -Message "Return to main menu..."
+    finally {
+        # Always return to menu
+        Write-Host ""
+        Write-Host "───────────────────────────────────────────────────────" -ForegroundColor DarkGray
+        Write-Host "Press Enter to return to main menu..." -ForegroundColor DarkGray -NoNewline
+        [Console]::ReadKey($true) | Out-Null
+    }
+}
+
+# Helper function for pausing (compatible with Interface.ps1)
+function Pause {
+    Write-Host ""
+    Write-Host "Press Enter to continue..." -ForegroundColor DarkGray -NoNewline
+    [Console]::ReadKey($true) | Out-Null
 }
