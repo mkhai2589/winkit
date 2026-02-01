@@ -1,62 +1,63 @@
 {
   "name": "WinKit",
   "version": "1.0.0",
+  "description": "Windows Optimization Toolkit",
   "features": [
     {
       "id": "CleanSystem",
       "order": 1,
       "title": "Clean System",
-      "description": "Clean temporary files and system caches",
       "file": "01_CleanSystem.ps1",
-      "requireAdmin": true
+      "requireAdmin": true,
+      "category": "Maintenance"
     },
     {
       "id": "Activation",
       "order": 2,
       "title": "Windows Activation",
-      "description": "Activate Windows and Office",
       "file": "02_Activation.ps1",
-      "requireAdmin": true
+      "requireAdmin": true,
+      "category": "System"
     },
     {
       "id": "Debloat",
       "order": 3,
       "title": "Remove Bloatware",
-      "description": "Remove unnecessary Windows apps and features",
       "file": "03_Debloat.ps1",
-      "requireAdmin": true
+      "requireAdmin": true,
+      "category": "Optimization"
     },
     {
       "id": "Tweaks",
       "order": 4,
       "title": "System Tweaks",
-      "description": "Performance and privacy tweaks",
       "file": "04_Tweaks.ps1",
-      "requireAdmin": true
+      "requireAdmin": true,
+      "category": "Optimization"
     },
     {
       "id": "Network",
       "order": 5,
       "title": "Network Settings",
-      "description": "Configure DNS and network optimizations",
       "file": "05_Network.ps1",
-      "requireAdmin": true
+      "requireAdmin": true,
+      "category": "Network"
     },
     {
       "id": "InstallApps",
       "order": 6,
       "title": "Install Applications",
-      "description": "Install essential software packages",
       "file": "06_InstallApps.ps1",
-      "requireAdmin": true
+      "requireAdmin": true,
+      "category": "Installation"
     },
     {
       "id": "RemoveWindowsAI",
       "order": 7,
       "title": "Remove Windows AI",
-      "description": "Remove Copilot, Recall, and AI features",
       "file": "07_RemoveWindowsAI.ps1",
-      "requireAdmin": true
+      "requireAdmin": true,
+      "category": "AI"
     }
   ]
 }
