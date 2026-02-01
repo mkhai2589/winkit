@@ -1,84 +1,111 @@
 # ==========================================
-# WinKit Core Interface - OPTIMIZED
+# WinKit Interface Module
+# Unified user interaction layer
 # ==========================================
 
-#region LOGGING INTERFACE
-function Write-WKLog {
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$Message,
-        
-        [ValidateSet('INFO', 'WARN', 'ERROR')]
-        [string]$Level = 'INFO',
-        
-        [string]$Feature = 'System'
-    )
-    
+#region SYSTEM INFO
+function Get-WKSystemInfo {
     try {
-        $time = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        $logMessage = "$time [$Level] [$Feature] - $Message"
+        $osInfo = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
+        $tz = (Get-TimeZone).Id
         
-        # Ensure log file exists
-        $logDir = Split-Path $global:WK_LOG -Parent
-        if (-not (Test-Path $logDir)) {
-            New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+        return @{
+            User = [System.Environment]::UserName
+            Computer = [System.Environment]::MachineName
+            OS = "Windows $([System.Environment]::OSVersion.Version.Major)"
+            Build = if ($osInfo) { $osInfo.BuildNumber } else { "Unknown" }
+            Arch = if ([System.Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
+            Mode = if ($PSVersionTable.PSVersion.Major -ge 7) { "Core" } else { "Desktop" }
+            TimeZone = $tz
+            Version = "v1.0.0"
         }
-        
-        $logMessage | Out-File -Append -FilePath $global:WK_LOG -Encoding UTF8
     }
     catch {
-        # Silent fail for logging errors
+        return @{
+            User = "Unknown"
+            Computer = "Unknown"
+            OS = "Windows"
+            Build = "Unknown"
+            Arch = "Unknown"
+            Mode = "Unknown"
+            TimeZone = "Unknown"
+            Version = "v1.0.0"
+        }
     }
 }
 #endregion
 
 #region USER INTERACTION
-function Get-WKConfirm {
+function Write-WKInfo {
+    param([string]$Message)
+    Write-Host "[*] $Message" -ForegroundColor Cyan
+}
+
+function Write-WKSuccess {
+    param([string]$Message)
+    Write-Host "[+] $Message" -ForegroundColor Green
+}
+
+function Write-WKWarn {
+    param([string]$Message)
+    Write-Host "[!] $Message" -ForegroundColor Yellow
+}
+
+function Write-WKError {
+    param([string]$Message)
+    Write-Host "[X] $Message" -ForegroundColor Red
+}
+
+function Ask-WKConfirm {
     param(
         [Parameter(Mandatory=$true)]
         [string]$Message,
         
-        [switch]$Dangerous,
-        [switch]$DefaultYes
+        [switch]$Dangerous
     )
     
     Write-Host ""
     
     if ($Dangerous) {
-        Write-Host "⚠️  WARNING: CRITICAL OPERATION" -ForegroundColor Red
-        Write-Host "----------------------------------------" -ForegroundColor DarkRed
-        Write-Host "$Message" -ForegroundColor White
-        Write-Host "Type 'YES' to confirm: " -ForegroundColor Red -NoNewline
-        $confirm = Read-Host
-        return ($confirm -eq "YES")
+        Write-Host "⚠️  DANGEROUS OPERATION" -ForegroundColor Red
+        Write-Host "=" * 50 -ForegroundColor DarkRed
+        Write-Host $Message -ForegroundColor White
+        Write-Host "=" * 50 -ForegroundColor DarkRed
+        Write-Host "Type 'YES' (uppercase) to confirm: " -ForegroundColor Red -NoNewline
+        return (Read-Host) -eq "YES"
     }
     else {
-        if ($DefaultYes) {
-            Write-Host "$Message [Y/n]: " -ForegroundColor Yellow -NoNewline
-        }
-        else {
-            Write-Host "$Message [y/N]: " -ForegroundColor Yellow -NoNewline
-        }
-        
-        $confirm = Read-Host
-        $confirm = $confirm.Trim().ToLower()
-        
-        if ([string]::IsNullOrEmpty($confirm)) {
-            return $DefaultYes
-        }
-        
-        return ($confirm -eq "y" -or $confirm -eq "yes")
+        Write-Host "$Message [y/N]: " -ForegroundColor Yellow -NoNewline
+        $input = Read-Host
+        return $input -in @('y', 'Y', 'yes', 'YES')
     }
 }
 
-function Pause-WK {
+function Ask-WKChoice {
     param(
-        [string]$Message = "Press Enter to continue..."
+        [Parameter(Mandatory=$true)]
+        [string]$Prompt,
+        
+        [Parameter(Mandatory=$true)]
+        [array]$Options
     )
     
-    Write-Host ""
-    Write-Host $Message -ForegroundColor DarkGray
-    [Console]::ReadKey($true) | Out-Null
+    Write-Host "`n$Prompt" -ForegroundColor Cyan
+    
+    for ($i = 0; $i -lt $Options.Count; $i++) {
+        Write-Host "  [$($i+1)] $($Options[$i])" -ForegroundColor Gray
+    }
+    
+    while ($true) {
+        Write-Host "`nSelect option [1-$($Options.Count)]: " -ForegroundColor Yellow -NoNewline
+        $choice = Read-Host
+        
+        if ($choice -match '^\d+$' -and [int]$choice -ge 1 -and [int]$choice -le $Options.Count) {
+            return [int]$choice
+        }
+        
+        Write-WKWarn "Invalid selection. Please try again."
+    }
 }
 #endregion
 
@@ -88,11 +115,9 @@ function Test-WKFeatureAvailable {
     
     try {
         $configPath = Join-Path $global:WK_ROOT "config.json"
-        if (-not (Test-Path $configPath)) {
-            return $false
-        }
+        if (-not (Test-Path $configPath)) { return $false }
         
-        $config = Get-Content $configPath -Raw | ConvertFrom-Json
+        $config = Read-Json -Path $configPath
         $feature = $config.features | Where-Object { $_.id -eq $FeatureId }
         
         if (-not $feature) { return $false }
@@ -108,12 +133,12 @@ function Test-WKFeatureAvailable {
 function Show-WKProgress {
     param(
         [string]$Activity,
-        [string]$Status = "Processing...",
-        [int]$PercentComplete = -1
+        [string]$Status,
+        [int]$Percent = -1
     )
     
-    if ($PercentComplete -ge 0) {
-        Write-Progress -Activity $Activity -Status $Status -PercentComplete $PercentComplete
+    if ($Percent -ge 0) {
+        Write-Progress -Activity $Activity -Status $Status -PercentComplete $Percent
     }
     else {
         Write-Progress -Activity $Activity -Status $Status
