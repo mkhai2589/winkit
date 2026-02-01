@@ -1,10 +1,6 @@
 {
   "name": "WinKit",
   "version": "1.0.0",
-  "description": "Windows Optimization Toolkit - Console Edition",
-  "author": "mkhai2589",
-  "repository": "https://github.com/mkhai2589/winkit",
-  
   "features": [
     {
       "id": "CleanSystem",
@@ -12,9 +8,7 @@
       "title": "Clean System",
       "description": "Clean temporary files and system caches",
       "file": "01_CleanSystem.ps1",
-      "requireAdmin": true,
-      "category": "Maintenance",
-      "dangerLevel": "Low"
+      "requireAdmin": true
     },
     {
       "id": "Activation",
@@ -22,9 +16,7 @@
       "title": "Windows Activation",
       "description": "Activate Windows and Office",
       "file": "02_Activation.ps1",
-      "requireAdmin": true,
-      "category": "System",
-      "dangerLevel": "Medium"
+      "requireAdmin": true
     },
     {
       "id": "Debloat",
@@ -32,9 +24,7 @@
       "title": "Remove Bloatware",
       "description": "Remove unnecessary Windows apps and features",
       "file": "03_Debloat.ps1",
-      "requireAdmin": true,
-      "category": "Optimization",
-      "dangerLevel": "Medium"
+      "requireAdmin": true
     },
     {
       "id": "Tweaks",
@@ -42,9 +32,7 @@
       "title": "System Tweaks",
       "description": "Performance and privacy tweaks",
       "file": "04_Tweaks.ps1",
-      "requireAdmin": true,
-      "category": "Optimization",
-      "dangerLevel": "Low"
+      "requireAdmin": true
     },
     {
       "id": "Network",
@@ -52,9 +40,7 @@
       "title": "Network Settings",
       "description": "Configure DNS and network optimizations",
       "file": "05_Network.ps1",
-      "requireAdmin": true,
-      "category": "Network",
-      "dangerLevel": "Low"
+      "requireAdmin": true
     },
     {
       "id": "InstallApps",
@@ -62,9 +48,7 @@
       "title": "Install Applications",
       "description": "Install essential software packages",
       "file": "06_InstallApps.ps1",
-      "requireAdmin": true,
-      "category": "Installation",
-      "dangerLevel": "Low"
+      "requireAdmin": true
     },
     {
       "id": "RemoveWindowsAI",
@@ -72,82 +56,7 @@
       "title": "Remove Windows AI",
       "description": "Remove Copilot, Recall, and AI features",
       "file": "07_RemoveWindowsAI.ps1",
-      "requireAdmin": true,
-      "category": "AI",
-      "dangerLevel": "High"
-    },
-    {
-      "id": "PowerPlan",
-      "order": 8,
-      "title": "Power Plan Tweaks",
-      "description": "Optimize power settings for performance",
-      "file": "08_PowerPlan.ps1",
-      "requireAdmin": true,
-      "category": "Optimization",
-      "dangerLevel": "Low"
-    },
-    {
-      "id": "Services",
-      "order": 9,
-      "title": "Services Optimization",
-      "description": "Configure Windows services for better performance",
-      "file": "09_Services.ps1",
-      "requireAdmin": true,
-      "category": "Optimization",
-      "dangerLevel": "Medium"
-    },
-    {
-      "id": "Privacy",
-      "order": 10,
-      "title": "Privacy Settings",
-      "description": "Disable telemetry and data collection",
-      "file": "10_Privacy.ps1",
-      "requireAdmin": true,
-      "category": "Privacy",
-      "dangerLevel": "Low"
-    },
-    {
-      "id": "Security",
-      "order": 11,
-      "title": "Security Hardening",
-      "description": "Enhance Windows security settings",
-      "file": "11_Security.ps1",
-      "requireAdmin": true,
-      "category": "Security",
-      "dangerLevel": "Medium"
-    },
-    {
-      "id": "Backup",
-      "order": 12,
-      "title": "System Backup",
-      "description": "Create system restore points and backups",
-      "file": "12_Backup.ps1",
-      "requireAdmin": true,
-      "category": "Maintenance",
-      "dangerLevel": "Low"
+      "requireAdmin": true
     }
-  ],
-  
-  "ui": {
-    "colors": {
-      "header": "Cyan",
-      "menuItem": "Green",
-      "description": "Gray",
-      "warning": "Red",
-      "success": "Green",
-      "info": "Blue"
-    },
-    "layout": {
-      "maxWidth": 80,
-      "showBorders": true,
-      "showIcons": false
-    }
-  },
-  
-  "system": {
-    "minPSVersion": 5.1,
-    "supportedOS": [10, 11],
-    "requireAdmin": true,
-    "autoUpdate": false
-  }
+  ]
 }
