@@ -1,24 +1,51 @@
 # =========================================================
-# WinKit - run.ps1
-# Entry point (irm | iex)
+# WinKit - run.ps1 (IRM SAFE FINAL)
 # =========================================================
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
-# -------------------------
-# ROOT PATH RESOLUTION
-# -------------------------
-$Global:WinKitRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoOwner = "mkhai2589"
+$RepoName  = "winkit"
+$Branch    = "main"
 
-# In case of irm | iex (no physical file)
-if (-not $WinKitRoot -or $WinKitRoot -eq "") {
-    $WinKitRoot = Get-Location
+# ---------------------------------------------------------
+# DETECT EXECUTION MODE
+# ---------------------------------------------------------
+$HasPhysicalFile = $false
+try {
+    if ($PSScriptRoot -and (Test-Path $PSScriptRoot)) {
+        $HasPhysicalFile = $true
+    }
+} catch {}
+
+# ---------------------------------------------------------
+# RESOLVE ROOT PATH
+# ---------------------------------------------------------
+if ($HasPhysicalFile) {
+    $Global:WinKitRoot = $PSScriptRoot
+}
+else {
+    Write-Host "[*] Running via irm | iex — bootstrapping WinKit..." -ForegroundColor Cyan
+
+    $Global:WinKitRoot = Join-Path $env:TEMP "WinKit"
+    $zipUrl  = "https://github.com/$RepoOwner/$RepoName/archive/refs/heads/$Branch.zip"
+    $zipFile = "$Global:WinKitRoot.zip"
+
+    if (Test-Path $Global:WinKitRoot) {
+        Remove-Item $Global:WinKitRoot -Recurse -Force
+    }
+
+    Invoke-WebRequest $zipUrl -OutFile $zipFile -UseBasicParsing
+    Expand-Archive $zipFile -DestinationPath $env:TEMP -Force
+    Remove-Item $zipFile -Force
+
+    $Global:WinKitRoot = Join-Path $env:TEMP "$RepoName-$Branch"
 }
 
-# -------------------------
-# CORE LOADER
-# -------------------------
+# ---------------------------------------------------------
+# SAFE IMPORT FUNCTION
+# ---------------------------------------------------------
 function Import-WinKitFile {
     param (
         [Parameter(Mandatory)]
@@ -26,59 +53,40 @@ function Import-WinKitFile {
     )
 
     $fullPath = Join-Path $Global:WinKitRoot $RelativePath
+
     if (-not (Test-Path $fullPath)) {
-        Write-Error "Required file not found: $RelativePath"
-        exit
+        Write-Host "[x] Missing file: $RelativePath" -ForegroundColor Red
+        exit 1
     }
 
     . $fullPath
 }
 
-# -------------------------
-# LOAD CORE & UI
-# -------------------------
-try {
-    Import-WinKitFile "ui\Theme.ps1"
-    Import-WinKitFile "ui\Header.ps1"
-    Import-WinKitFile "ui\Footer.ps1"
+# ---------------------------------------------------------
+# LOAD UI
+# ---------------------------------------------------------
+Import-WinKitFile "ui\Theme.ps1"
+Import-WinKitFile "ui\Header.ps1"
+Import-WinKitFile "ui\Footer.ps1"
 
-    Import-WinKitFile "core\Utils.ps1"
-    Import-WinKitFile "core\Security.ps1"
-    Import-WinKitFile "core\Environment.ps1"
-    Import-WinKitFile "core\Loader.ps1"
-    Import-WinKitFile "core\Menu.ps1"
-}
-catch {
-    Write-Host "[x] Failed to load WinKit core files" -ForegroundColor Red
-    Write-Host $_.Exception.Message -ForegroundColor Red
-    exit
-}
+# ---------------------------------------------------------
+# LOAD CORE
+# ---------------------------------------------------------
+Import-WinKitFile "core\Utils.ps1"
+Import-WinKitFile "core\Security.ps1"
+Import-WinKitFile "core\Environment.ps1"
+Import-WinKitFile "core\Loader.ps1"
+Import-WinKitFile "core\Menu.ps1"
 
-# -------------------------
-# INITIALIZATION PIPELINE
-# -------------------------
-try {
-    Initialize-Security
-    Initialize-Environment
-    Initialize-Loader
-}
-catch {
-    Write-ErrorX "Initialization failed"
-    Write-ErrorX $_.Exception.Message
-    exit
-}
+# ---------------------------------------------------------
+# INIT PIPELINE
+# ---------------------------------------------------------
+Initialize-Security
+Initialize-Environment
+Initialize-Loader
 
-# -------------------------
+# ---------------------------------------------------------
 # START UI
-# -------------------------
-try {
-    Start-Menu
-}
-catch {
-    Write-ErrorX "Fatal error occurred"
-    Write-ErrorX $_.Exception.Message
-    Pause-Console
-}
-finally {
-    Show-Footer
-}
+# ---------------------------------------------------------
+Start-Menu
+Show-Footer
