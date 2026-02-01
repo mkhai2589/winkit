@@ -1,0 +1,8 @@
+{
+  "id": 1,
+  "name": "Test Module",
+  "category": "Debug",
+  "requireAdmin": false,
+  "support": ["Windows"],
+  "entry": "Test.ps1"
+}
