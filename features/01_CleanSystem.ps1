@@ -61,7 +61,7 @@ function Start-CleanSystem {
     
     Write-Host ""
     Write-Host "=== Summary ===" -ForegroundColor Green
-    Write-WKSuccess "System cleanup completed successfully!"
+    Write-WKSuccess "System cleanup completed successfully"
     Write-WKInfo "Note: Some changes may require restart to take full effect."
     
     Write-Log -Message "CleanSystem feature executed" -Level "INFO"
