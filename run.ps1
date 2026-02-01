@@ -1,26 +1,84 @@
-# ===============================
-# WinKit Entry Point
-# ===============================
+# =========================================================
+# WinKit - run.ps1
+# Entry point (irm | iex)
+# =========================================================
 
-Set-ExecutionPolicy Bypass -Scope Process -Force
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
 
-$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+# -------------------------
+# ROOT PATH RESOLUTION
+# -------------------------
+$Global:WinKitRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-# Load core
-. "$Root\core\Utils.ps1"
-. "$Root\core\Security.ps1"
-. "$Root\core\Environment.ps1"
-. "$Root\core\Loader.ps1"
-. "$Root\core\Menu.ps1"
+# In case of irm | iex (no physical file)
+if (-not $WinKitRoot -or $WinKitRoot -eq "") {
+    $WinKitRoot = Get-Location
+}
 
-# Load UI
-. "$Root\ui\Theme.ps1"
-. "$Root\ui\Header.ps1"
-. "$Root\ui\Footer.ps1"
-. "$Root\ui\Dashboard.ps1"
+# -------------------------
+# CORE LOADER
+# -------------------------
+function Import-WinKitFile {
+    param (
+        [Parameter(Mandatory)]
+        [string]$RelativePath
+    )
 
-Initialize-Security
-Initialize-Environment
-Load-WinKitModules
+    $fullPath = Join-Path $Global:WinKitRoot $RelativePath
+    if (-not (Test-Path $fullPath)) {
+        Write-Error "Required file not found: $RelativePath"
+        exit
+    }
 
-Start-WinKit
+    . $fullPath
+}
+
+# -------------------------
+# LOAD CORE & UI
+# -------------------------
+try {
+    Import-WinKitFile "ui\Theme.ps1"
+    Import-WinKitFile "ui\Header.ps1"
+    Import-WinKitFile "ui\Footer.ps1"
+
+    Import-WinKitFile "core\Utils.ps1"
+    Import-WinKitFile "core\Security.ps1"
+    Import-WinKitFile "core\Environment.ps1"
+    Import-WinKitFile "core\Loader.ps1"
+    Import-WinKitFile "core\Menu.ps1"
+}
+catch {
+    Write-Host "[x] Failed to load WinKit core files" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
+    exit
+}
+
+# -------------------------
+# INITIALIZATION PIPELINE
+# -------------------------
+try {
+    Initialize-Security
+    Initialize-Environment
+    Initialize-Loader
+}
+catch {
+    Write-ErrorX "Initialization failed"
+    Write-ErrorX $_.Exception.Message
+    exit
+}
+
+# -------------------------
+# START UI
+# -------------------------
+try {
+    Start-Menu
+}
+catch {
+    Write-ErrorX "Fatal error occurred"
+    Write-ErrorX $_.Exception.Message
+    Pause-Console
+}
+finally {
+    Show-Footer
+}
