@@ -17,8 +17,8 @@ function Start-CleanSystem {
     Write-Host ""
     Write-WKInfo "Cleaning temporary files..."
     try {
-        Get-ChildItem "$env:TEMP\*" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-        Get-ChildItem "C:\Windows\Temp\*" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
         Write-WKSuccess "Temporary files cleaned"
     }
     catch {
@@ -28,19 +28,10 @@ function Start-CleanSystem {
     Write-Host ""
     Write-WKInfo "Cleaning Windows Update cache..."
     try {
-        $wuauserv = Get-Service wuauserv -ErrorAction SilentlyContinue
-        if ($wuauserv -and $wuauserv.Status -eq 'Running') {
-            Stop-Service wuauserv -Force -ErrorAction SilentlyContinue
-        }
-        
-        if (Test-Path "C:\Windows\SoftwareDistribution\Download") {
-            Get-ChildItem "C:\Windows\SoftwareDistribution\Download\*" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-        }
-        
-        if ($wuauserv) {
-            Start-Service wuauserv -ErrorAction SilentlyContinue
-        }
-        Write-WKSuccess "Windows Update cache cleaned")
+        Stop-Service wuauserv -Force -ErrorAction SilentlyContinue
+        Remove-Item "C:\Windows\SoftwareDistribution\Download\*" -Recurse -Force -ErrorAction SilentlyContinue
+        Start-Service wuauserv -ErrorAction SilentlyContinue
+        Write-WKSuccess "Windows Update cache cleaned"
     }
     catch {
         Write-WKWarn "Windows Update cache cleaning failed"
@@ -49,9 +40,7 @@ function Start-CleanSystem {
     Write-Host ""
     Write-WKInfo "Cleaning prefetch files..."
     try {
-        if (Test-Path "C:\Windows\Prefetch") {
-            Get-ChildItem "C:\Windows\Prefetch\*" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-        }
+        Remove-Item "C:\Windows\Prefetch\*" -Force -ErrorAction SilentlyContinue
         Write-WKSuccess "Prefetch files cleaned"
     }
     catch {
