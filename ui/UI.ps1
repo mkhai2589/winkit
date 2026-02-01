@@ -1,31 +1,74 @@
+# ==========================================
+# WinKit UI Module
+# Presentation and layout functions
+# ==========================================
+
 function Initialize-UI {
     Clear-Host
     
-    # Try to load ASCII art
-    $asciiPath = Join-Path $WK_ROOT "assets\ascii.txt"
+    # Load and display ASCII art if available
+    $asciiPath = Join-Path $global:WK_ROOT "assets\ascii.txt"
     if (Test-Path $asciiPath) {
         try {
-            Get-Content $asciiPath | Write-Host -ForegroundColor Cyan
+            $asciiArt = Get-Content $asciiPath
+            foreach ($line in $asciiArt) {
+                Write-Host $line -ForegroundColor $WK_THEME.Header
+            }
+            Write-Host ""
         }
         catch {
-            # If ASCII fails, just show title
+            # If ASCII fails, show minimal header
+            Write-Host "WinKit" -ForegroundColor $WK_THEME.Header
+            Write-Host "══════════════════════════════════════════" -ForegroundColor $WK_THEME.Border
         }
     }
+    else {
+        Write-Host "WinKit - Windows Optimization Toolkit" -ForegroundColor $WK_THEME.Header
+        Write-Host "══════════════════════════════════════════" -ForegroundColor $WK_THEME.Border
+    }
+}
+
+function Show-Header {
+    $sysInfo = Get-WKSystemInfo
     
-    Write-Host "=========================================" -ForegroundColor Cyan
-    Write-Host "        WinKit - Windows Toolkit" -ForegroundColor White
-    Write-Host "=========================================" -ForegroundColor Cyan
+    Write-Host "┌─────────────────────────────────────────────────────┐" -ForegroundColor $WK_THEME.Border
+    Write-Host "│ " -NoNewline -ForegroundColor $WK_THEME.Border
+    Write-Host "$($sysInfo.User)" -NoNewline -ForegroundColor $WK_THEME.Primary
+    Write-Host " | " -NoNewline -ForegroundColor $WK_THEME.Secondary
+    Write-Host "$($sysInfo.Computer)" -NoNewline -ForegroundColor $WK_THEME.Primary
+    Write-Host " | " -NoNewline -ForegroundColor $WK_THEME.Secondary
+    Write-Host "$($sysInfo.OS) $($sysInfo.Build)" -NoNewline -ForegroundColor $WK_THEME.Primary
+    Write-Host " | " -NoNewline -ForegroundColor $WK_THEME.Secondary
+    Write-Host "$($sysInfo.Arch)" -ForegroundColor $WK_THEME.Primary
+    
+    Write-Host "│ " -NoNewline -ForegroundColor $WK_THEME.Border
+    Write-Host "$($sysInfo.TimeZone)" -NoNewline -ForegroundColor $WK_THEME.Secondary
+    Write-Host " | " -NoNewline -ForegroundColor $WK_THEME.Secondary
+    Write-Host "v1.0.0" -NoNewline -ForegroundColor $WK_THEME.Accent
+    Write-Host " | " -NoNewline -ForegroundColor $WK_THEME.Secondary
+    Write-Host "github.com/mkhai2589/winkit" -ForegroundColor $WK_THEME.Highlight
+    Write-Host "├─────────────────────────────────────────────────────┤" -ForegroundColor $WK_THEME.Border
 }
 
 function Show-Footer {
     try {
-        $versionPath = Join-Path $WK_ROOT "version.json"
+        $versionPath = Join-Path $global:WK_ROOT "version.json"
         if (Test-Path $versionPath) {
-            $version = Get-Content $versionPath -Raw | ConvertFrom-Json
-            Write-Host "`nVersion: $($version.version) | $($version.channel)" -ForegroundColor DarkGray
+            $version = Read-Json -Path $versionPath
+            Write-Host "`nWinKit $($version.version) ($($version.channel))" -ForegroundColor $WK_THEME.Secondary
         }
     }
     catch {
-        Write-Host "`nVersion: 1.0.0 | stable" -ForegroundColor DarkGray
+        Write-Host "`nWinKit v1.0.0" -ForegroundColor $WK_THEME.Secondary
     }
+}
+
+function Show-Section {
+    param(
+        [string]$Title,
+        [string]$Color = "Yellow"
+    )
+    
+    Write-Host "`n$Title" -ForegroundColor $Color
+    Write-Host ("─" * $Title.Length) -ForegroundColor $WK_THEME.Border
 }
