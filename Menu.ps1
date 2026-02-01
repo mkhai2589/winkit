@@ -6,17 +6,28 @@ function Show-MainMenu {
             Show-SystemInfoBar
             Show-MainMenuTitle
             
-            $config = Read-Json -Path (Join-Path $global:WK_ROOT "config.json")
+            # Load menu from config.json (data-driven)
+            $configPath = Join-Path $global:WK_ROOT "config.json"
+            if (-not (Test-Path $configPath)) {
+                throw "Configuration file not found at: $configPath"
+            }
+            
+            $config = Read-Json -Path $configPath
             $features = $config.features | Sort-Object order
             
+            # Filter only features that have corresponding files
+            $availableFeatures = @()
             foreach ($feature in $features) {
+                $featurePath = Join-Path $global:WK_FEATURES $feature.file
+                if (Test-Path $featurePath) {
+                    $availableFeatures += $feature
+                }
+            }
+            
+            # Display menu - only number and title (no description)
+            foreach ($feature in $availableFeatures) {
                 Write-Host "  [$($feature.order)]. " -NoNewline -ForegroundColor Green
                 Write-Host $feature.title -ForegroundColor White
-                
-                if ($feature.description) {
-                    Write-Host "      $($feature.description)" -ForegroundColor Gray
-                }
-                
                 Write-Host ""
             }
             
@@ -26,32 +37,34 @@ function Show-MainMenu {
             
             Show-Footer -Status "Ready"
             
-            Write-Host "Select an option [0-$($features[-1].order)]: " -NoNewline -ForegroundColor Yellow
+            # Get user input
+            Write-Host "Select an option [0-$($availableFeatures[-1].order)]: " -NoNewline -ForegroundColor Yellow
             $choice = Read-Host
             
             if ($choice -eq "0") {
-                Write-Host "Exiting..." -ForegroundColor Cyan
+                Write-Host "`nExiting WinKit. Goodbye!" -ForegroundColor Cyan
                 exit 0
             }
             
+            # Validate input
             if (-not ($choice -match '^\d+$')) {
-                Write-Host "Invalid input! Please enter a number." -ForegroundColor Red
+                Write-Host "`nInvalid input! Please enter a number." -ForegroundColor Red
                 Pause
                 continue
             }
             
-            $selected = $features | Where-Object { $_.order -eq [int]$choice }
+            $selectedFeature = $availableFeatures | Where-Object { $_.order -eq [int]$choice }
             
-            if (-not $selected) {
-                Write-Host "Option $choice not available!" -ForegroundColor Red
+            if (-not $selectedFeature) {
+                Write-Host "`nOption $choice not available!" -ForegroundColor Red
                 Pause
                 continue
             }
             
-            Execute-Feature -Feature $selected
+            Execute-Feature -Feature $selectedFeature
         }
         catch {
-            Write-Host "Menu Error: $_" -ForegroundColor Red
+            Write-Host "`nMenu Error: $_" -ForegroundColor Red
             Pause
         }
     }
@@ -71,22 +84,28 @@ function Execute-Feature {
             throw "Feature file not found: $featurePath"
         }
         
+        # Dynamically load feature
         . $featurePath
         
         $functionName = "Start-$($Feature.id)"
         
         if (Get-Command $functionName -ErrorAction SilentlyContinue) {
+            # Update footer to show running status
             Show-Footer -Status "Running: $($Feature.title)"
             Write-Host ""
+            
+            # Execute feature
             & $functionName
+            
+            # Log execution
             Write-Log -Message "Feature executed: $($Feature.id)" -Level "INFO"
         }
         else {
-            throw "Function $functionName not found"
+            throw "Feature function '$functionName' not found in $($Feature.file)"
         }
     }
     catch {
-        Write-Host "Feature Error: $_" -ForegroundColor Red
+        Write-Host "`nFeature Error: $_" -ForegroundColor Red
         Write-Log -Message "Feature failed: $($Feature.id) - $_" -Level "ERROR"
     }
     finally {
