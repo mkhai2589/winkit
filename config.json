@@ -3,7 +3,12 @@
   "version": "1.0.0",
   "description": "Windows Optimization Toolkit",
   "ui": {
-    "categoryOrder": ["QuickActions", "Advanced"]
+    "categoryOrder": ["Essential", "Advanced", "Tools"],
+    "categoryColors": {
+      "Essential": "Green",
+      "Advanced": "Yellow",
+      "Tools": "Cyan"
+    }
   },
   "features": [
     {
@@ -13,9 +18,8 @@
       "description": "Clean temporary files and system caches",
       "file": "01_CleanSystem.ps1",
       "requireAdmin": true,
-      "category": "QuickActions",
-      "dangerLevel": "Low",
-      "recommended": true
+      "category": "Essential",
+      "dangerLevel": "Low"
     },
     {
       "id": "Debloat",
@@ -24,20 +28,18 @@
       "description": "Remove unnecessary Windows apps and features",
       "file": "03_Debloat.ps1",
       "requireAdmin": true,
-      "category": "QuickActions",
-      "dangerLevel": "Medium",
-      "recommended": true
+      "category": "Essential",
+      "dangerLevel": "Medium"
     },
     {
       "id": "Network",
       "order": 3,
-      "title": "Optimize Network",
+      "title": "Network Optimization",
       "description": "Configure DNS and network optimizations",
       "file": "05_Network.ps1",
       "requireAdmin": true,
-      "category": "QuickActions",
-      "dangerLevel": "Low",
-      "recommended": true
+      "category": "Essential",
+      "dangerLevel": "Low"
     },
     {
       "id": "InstallApps",
@@ -47,8 +49,7 @@
       "file": "06_InstallApps.ps1",
       "requireAdmin": true,
       "category": "Advanced",
-      "dangerLevel": "Low",
-      "recommended": false
+      "dangerLevel": "Low"
     },
     {
       "id": "RemoveWindowsAI",
@@ -58,8 +59,17 @@
       "file": "07_RemoveWindowsAI.ps1",
       "requireAdmin": true,
       "category": "Advanced",
-      "dangerLevel": "High",
-      "recommended": false
+      "dangerLevel": "High"
+    },
+    {
+      "id": "ActivationTool",
+      "order": 6,
+      "title": "Microsoft Tools",
+      "description": "Activate Windows and Office",
+      "file": "02_ActivationTool.ps1",
+      "requireAdmin": true,
+      "category": "Tools",
+      "dangerLevel": "Medium"
     }
   ]
 }
