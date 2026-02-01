@@ -5,46 +5,48 @@ function Start-WinKit {
         $global:WK_FEATURES = Join-Path $WK_ROOT "features"
         $global:WK_LOG = Join-Path $env:TEMP "winkit.log"
         
+        # Clear old log on new start
+        if (Test-Path $WK_LOG) {
+            Remove-Item $WK_LOG -Force -ErrorAction SilentlyContinue
+        }
+        
         # LOAD CORE MODULES IN CORRECT ORDER
         # 1. Logger first (so Write-Log is available immediately)
         . "$WK_ROOT\core\Logger.ps1"
         Write-Log -Message "WinKit starting from: $WK_ROOT" -Level "INFO"
         
         # 2. Load remaining core modules
+        Write-Log -Message "Loading core modules..." -Level "DEBUG"
         . "$WK_ROOT\core\Security.ps1"
         . "$WK_ROOT\core\Utils.ps1"
         . "$WK_ROOT\core\Interface.ps1"
         
         # 3. Load UI modules
+        Write-Log -Message "Loading UI modules..." -Level "DEBUG"
         . "$WK_ROOT\ui\Theme.ps1"
         . "$WK_ROOT\ui\UI.ps1"
         
         # 4. Load Menu module
+        Write-Log -Message "Loading menu module..." -Level "DEBUG"
         . "$WK_ROOT\Menu.ps1"
         
         # VALIDATE ADMINISTRATOR PRIVILEGES
         Write-Log -Message "Checking administrator privileges..." -Level "DEBUG"
         Test-WKAdmin
         
-        Write-Log -Message "All modules loaded successfully" -Level "INFO"
-        
-        # START USER INTERFACE
+        Write-Log -Message "Starting user interface..." -Level "INFO"
         Initialize-UI
         Show-MainMenu
         
     }
     catch {
-        # Try to log error if logger is available
-        try { 
-            Write-Log -Message "Fatal startup error: $_" -Level "ERROR" 
-            Write-Log -Message "Error details: $($_.Exception.StackTrace)" -Level "DEBUG"
-        } 
-        catch {}
+        # Try to log the error if logger is available
+        try { Write-Log -Message "Fatal startup error: $_" -Level "ERROR" } catch {}
         
         # Show user-friendly error
-        Write-Host "`nFATAL ERROR: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "`nERROR: $($_.Exception.Message)" -ForegroundColor Red
         Write-Host "`nPress Enter to exit..." -ForegroundColor Yellow
-        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+        [Console]::ReadKey($true) | Out-Null
         exit 1
     }
 }
