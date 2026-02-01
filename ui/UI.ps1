@@ -6,9 +6,22 @@ function Initialize-UI {
 }
 
 function Show-Header {
-
-    . "$PSScriptRoot\logo.ps1"
-    Show-Logo
+    # Cố gắng load logo từ file trước
+    $logoPath = Join-Path $PSScriptRoot "logo.ps1"
+    
+    if (Test-Path $logoPath) {
+        try {
+            . $logoPath
+            Show-Logo
+        }
+        catch {
+            Show-FallbackLogo
+        }
+    }
+    else {
+        # Fallback nếu không tìm thấy file
+        Show-FallbackLogo
+    }
 }
 
 function Show-SystemInfoBar {
