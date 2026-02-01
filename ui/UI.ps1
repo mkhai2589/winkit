@@ -1,14 +1,25 @@
 function Initialize-UI {
     Clear-Host
     Show-Header
+    Write-Host ""  # Thêm dòng trống
     Show-SystemInfoBar
 }
 
 function Show-Header {
     $asciiPath = Join-Path $global:WK_ROOT "assets\ascii.txt"
     if (Test-Path $asciiPath) {
-        Get-Content $asciiPath | ForEach-Object {
-            Write-Host $_ -ForegroundColor Cyan
+        try {
+            $asciiArt = Get-Content $asciiPath -Encoding UTF8 -ErrorAction Stop
+            foreach ($line in $asciiArt) {
+                Write-Host $line -ForegroundColor Cyan
+            }
+        }
+        catch {
+            # Fallback if ASCII art fails to load
+            Write-Host "------------------------------------------" -ForegroundColor Cyan
+            Write-Host "              W I N K I T                 " -ForegroundColor White
+            Write-Host "    Windows Optimization Toolkit          " -ForegroundColor Gray
+            Write-Host "------------------------------------------" -ForegroundColor Cyan
         }
     }
     else {
@@ -24,7 +35,7 @@ function Show-SystemInfoBar {
         $sysInfo = Get-WKSystemInfo
         
         Write-Host ""
-        Write-Host "SYSTEM STATUS" -ForegroundColor Cyan
+        Write-Host "SYSTEM STATUS" -ForegroundColor White
         Write-Host "-------------" -ForegroundColor DarkGray
         
         # Line 1: OS + PS + Admin + Network
@@ -32,6 +43,8 @@ function Show-SystemInfoBar {
         Write-Host "PS: $($sysInfo.PSVersion) | " -NoNewline -ForegroundColor Gray
         Write-Host "Admin: $($sysInfo.Admin) | " -NoNewline -ForegroundColor $(if ($sysInfo.Admin -eq "YES") { "Green" } else { "Red" })
         Write-Host "Mode: $($sysInfo.Mode)" -ForegroundColor $(if ($sysInfo.Mode -eq "Online") { "Green" } else { "Yellow" })
+        
+        Write-Host ""  # Thêm dòng trống
         
         # Line 2: User + Computer + TPM
         Write-Host "USER: $($sysInfo.User) | " -NoNewline -ForegroundColor Gray
@@ -41,15 +54,19 @@ function Show-SystemInfoBar {
         # Line 3: Time Zone
         Write-Host "TIME ZONE: $($sysInfo.TimeZone)" -ForegroundColor Gray
         
+        Write-Host ""  # Thêm dòng trống
+        
         # Line 4+: Disks - compact display (max 2 per line)
         if ($sysInfo.Disks.Count -gt 0) {
             Write-Host "DISKS: " -NoNewline -ForegroundColor Gray
             $diskCount = 0
+            $lineBreaks = 0
             foreach ($disk in $sysInfo.Disks) {
                 if ($diskCount -gt 0) {
                     if ($diskCount % 2 -eq 0) {
                         Write-Host ""
-                        Write-Host "      " -NoNewline
+                        Write-Host "       " -NoNewline
+                        $lineBreaks++
                     } else {
                         Write-Host " | " -NoNewline -ForegroundColor DarkGray
                     }
@@ -64,9 +81,11 @@ function Show-SystemInfoBar {
         
         Write-Host ""
         Write-Host "------------------------------------------" -ForegroundColor DarkGray
+        Write-Host ""  # Thêm dòng trống
         
     }
     catch {
         Write-Host "System information unavailable" -ForegroundColor Red
+        Write-Host ""
     }
 }
