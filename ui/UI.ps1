@@ -28,27 +28,6 @@ function Initialize-UI {
     }
 }
 
-function Show-Header {
-    $sysInfo = Get-WKSystemInfo
-    
-    Write-Host "┌─────────────────────────────────────────────────────┐" -ForegroundColor $WK_THEME.Border
-    Write-Host "│ " -NoNewline -ForegroundColor $WK_THEME.Border
-    Write-Host "$($sysInfo.User)" -NoNewline -ForegroundColor $WK_THEME.Primary
-    Write-Host " | " -NoNewline -ForegroundColor $WK_THEME.Secondary
-    Write-Host "$($sysInfo.Computer)" -NoNewline -ForegroundColor $WK_THEME.Primary
-    Write-Host " | " -NoNewline -ForegroundColor $WK_THEME.Secondary
-    Write-Host "$($sysInfo.OS) $($sysInfo.Build)" -NoNewline -ForegroundColor $WK_THEME.Primary
-    Write-Host " | " -NoNewline -ForegroundColor $WK_THEME.Secondary
-    Write-Host "$($sysInfo.Arch)" -ForegroundColor $WK_THEME.Primary
-    
-    Write-Host "│ " -NoNewline -ForegroundColor $WK_THEME.Border
-    Write-Host "$($sysInfo.TimeZone)" -NoNewline -ForegroundColor $WK_THEME.Secondary
-    Write-Host " | " -NoNewline -ForegroundColor $WK_THEME.Secondary
-    Write-Host "v1.0.0" -NoNewline -ForegroundColor $WK_THEME.Accent
-    Write-Host " | " -NoNewline -ForegroundColor $WK_THEME.Secondary
-    Write-Host "github.com/mkhai2589/winkit" -ForegroundColor $WK_THEME.Highlight
-    Write-Host "├─────────────────────────────────────────────────────┤" -ForegroundColor $WK_THEME.Border
-}
 
 function Show-Footer {
     try {
