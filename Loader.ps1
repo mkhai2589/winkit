@@ -8,15 +8,15 @@ function Start-WinKit {
         # Set global paths
         $global:WK_ROOT = Split-Path $MyInvocation.MyCommand.Path
         $global:WK_FEATURES = Join-Path $WK_ROOT "features"
+        $global:WK_LOG = Join-Path $env:TEMP "winkit.log"
         
-        # Load Logger FIRST to enable logging
+        # **LOAD LOGGER FIRST**
         . "$WK_ROOT\core\Logger.ps1"
-        
-        # Initialize logging
+        # Now Write-Log is available
         Write-Log -Message "WinKit started" -Level "INFO"
+        Write-Log -Message "Loading core modules" -Level "DEBUG"
         
         # Load remaining core modules
-        Write-Log -Message "Loading core modules" -Level "DEBUG"
         . "$WK_ROOT\core\Security.ps1"
         . "$WK_ROOT\core\Utils.ps1"
         . "$WK_ROOT\core\Interface.ps1"
@@ -40,9 +40,6 @@ function Start-WinKit {
         Show-MainMenu
     }
     catch {
-        # Try to log error if logger is available
-        try { Write-Log -Message "Startup failed: $_" -Level "ERROR" } catch {}
-        
         Write-Host "`nERROR: $($_.Exception.Message)" -ForegroundColor Red
         Write-Host "`nWinKit cannot start. Press Enter to exit..." -ForegroundColor Yellow
         [Console]::ReadKey($true) | Out-Null
