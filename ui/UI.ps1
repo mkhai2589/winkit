@@ -6,28 +6,9 @@ function Initialize-UI {
 }
 
 function Show-Header {
-    $asciiPath = Join-Path $global:WK_ROOT "assets\ascii.txt"
-    if (Test-Path $asciiPath) {
-        try {
-            $asciiArt = Get-Content $asciiPath -Encoding UTF8 -ErrorAction Stop
-            foreach ($line in $asciiArt) {
-                Write-Host $line -ForegroundColor Cyan
-            }
-        }
-        catch {
-            # Fallback if ASCII art fails to load
-            Write-Host "------------------------------------------" -ForegroundColor Cyan
-            Write-Host "              W I N K I T                 " -ForegroundColor White
-            Write-Host "    Windows Optimization Toolkit          " -ForegroundColor Gray
-            Write-Host "------------------------------------------" -ForegroundColor Cyan
-        }
-    }
-    else {
-        Write-Host "------------------------------------------" -ForegroundColor Cyan
-        Write-Host "              W I N K I T                 " -ForegroundColor White
-        Write-Host "    Windows Optimization Toolkit          " -ForegroundColor Gray
-        Write-Host "------------------------------------------" -ForegroundColor Cyan
-    }
+
+    . "$PSScriptRoot\logo.ps1"
+    Show-Logo
 }
 
 function Show-SystemInfoBar {
