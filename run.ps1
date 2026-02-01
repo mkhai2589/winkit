@@ -1,5 +1,6 @@
 $ErrorActionPreference = "Stop"
 
+# Fix Execution Policy - Bypass for current process only
 try {
     Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force -ErrorAction SilentlyContinue
 }
@@ -19,7 +20,7 @@ $FILES = @(
     "core/Logger.ps1",
     "core/Security.ps1",
     "core/Utils.ps1",
-    "core/Interface.ps1",    # ĐÃ THÊM
+    "core/Interface.ps1",
     "ui/Theme.ps1",
     "ui/UI.ps1",
     "features/01_CleanSystem.ps1"
@@ -35,13 +36,13 @@ if (-not (Test-Path $WK_ROOT)) {
 foreach ($f in $FILES) {
     try {
         $dest = Join-Path $WK_ROOT $f
-        $dir = Split-Path $dest
+        $dir = Split-Path $dest -Parent
         if (-not (Test-Path $dir)) {
             New-Item -ItemType Directory -Path $dir -Force | Out-Null
         }
 
         Write-Host "  Downloading: $f" -ForegroundColor Gray
-        Invoke-WebRequest "$REPO/$f" -UseBasicParsing -OutFile $dest -ErrorAction Stop
+        Invoke-RestMethod "$REPO/$f" -UseBasicParsing -OutFile $dest -ErrorAction Stop
     }
     catch {
         Write-Host "  ERROR: Failed to download $f" -ForegroundColor Red
@@ -50,9 +51,18 @@ foreach ($f in $FILES) {
     }
 }
 
-Write-Host "Download complete!" -ForegroundColor Green
+Write-Host "`nDownload complete!" -ForegroundColor Green
 Write-Host "Starting WinKit..." -ForegroundColor Cyan
+Start-Sleep -Seconds 1
 
 # Load and execute
-. "$WK_ROOT\Loader.ps1"
-Start-WinKit
+try {
+    . "$WK_ROOT\Loader.ps1"
+    Start-WinKit
+}
+catch {
+    Write-Host "`nFailed to start WinKit: $_" -ForegroundColor Red
+    Write-Host "`nPress Enter to exit..."
+    [Console]::ReadKey($true)
+    exit 1
+}
