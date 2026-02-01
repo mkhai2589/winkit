@@ -3,6 +3,7 @@ function Show-MainMenu {
         try {
             Clear-Host
             Show-Header
+            Write-Host ""  # Thêm dòng trống
             Show-SystemInfoBar
             
             # LOAD CONFIGURATION
@@ -18,34 +19,42 @@ function Show-MainMenu {
             }
             
             # GROUP FEATURES BY CATEGORY
-            $quickActions = $availableFeatures | Where-Object { $_.category -eq "QuickActions" } | Sort-Object order
-            $advanced = $availableFeatures | Where-Object { $_.category -eq "Advanced" } | Sort-Object order
-            
-            # DISPLAY QUICK ACTIONS
-            if ($quickActions.Count -gt 0) {
-                Write-Host ""
-                Write-Host "[ QUICK ACTIONS ]" -ForegroundColor Green
-                Write-Host ""
-                
-                foreach ($feature in $quickActions) {
-                    $recommended = if ($feature.recommended) { " (Recommended)" } else { "" }
-                    Write-Host " [$($feature.order)] $($feature.title)$recommended" -ForegroundColor White
+            $categories = @{}
+            foreach ($feature in $availableFeatures) {
+                if (-not $categories.ContainsKey($feature.category)) {
+                    $categories[$feature.category] = @()
                 }
+                $categories[$feature.category] += $feature
             }
             
-            # DISPLAY ADVANCED
-            if ($advanced.Count -gt 0) {
-                Write-Host ""
-                Write-Host "[ ADVANCED ]" -ForegroundColor Yellow
-                Write-Host ""
-                
-                foreach ($feature in $advanced) {
-                    $danger = switch ($feature.dangerLevel) {
-                        "High" { " (!) " }
-                        "Medium" { " (?) " }
-                        default { " " }
+            # SORT FEATURES IN EACH CATEGORY
+            foreach ($category in $categories.Keys) {
+                $categories[$category] = $categories[$category] | Sort-Object order
+            }
+            
+            # DISPLAY CATEGORIES IN SPECIFIED ORDER
+            $categoryOrder = $config.ui.categoryOrder
+            foreach ($category in $categoryOrder) {
+                if ($categories.ContainsKey($category) -and $categories[$category].Count -gt 0) {
+                    $categoryColor = if ($config.ui.categoryColors.$category) { 
+                        $config.ui.categoryColors.$category 
+                    } else { 
+                        $WK_THEME[$category] 
                     }
-                    Write-Host " [$($feature.order)]$danger$($feature.title)" -ForegroundColor White
+                    
+                    Write-Host ""
+                    Write-Host "[ $category ]" -ForegroundColor $categoryColor
+                    Write-Host ""
+                    
+                    foreach ($feature in $categories[$category]) {
+                        $dangerIcon = switch ($feature.dangerLevel) {
+                            "High" { " (!)" }
+                            "Medium" { " (?)" }
+                            default { "" }
+                        }
+                        
+                        Write-Host " [$($feature.order)]$dangerIcon $($feature.title)" -ForegroundColor White
+                    }
                 }
             }
             
