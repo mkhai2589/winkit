@@ -1,8 +1,0 @@
-{
-  "id": 5,
-  "name": "Remove Windows AI (Copilot, Recall)",
-  "category": "Tweaks",
-  "requireAdmin": true,
-  "support": ["Windows 11"],
-  "entry": "RemoveAI.ps1"
-}
