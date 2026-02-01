@@ -40,17 +40,17 @@ function Show-SystemInfoBar {
         # Line 3: Time Zone
         Write-Host "TIME ZONE: $($sysInfo.TimeZone)" -ForegroundColor Cyan
         
-        # Line 4: Disks
-        Write-Host "DISKS: " -NoNewline -ForegroundColor Cyan
+        # Line 4: Disk Information
+        Write-Host "DISKS:" -ForegroundColor Cyan
         if ($sysInfo.Disks.Count -gt 0) {
-            $diskStrings = @()
             foreach ($disk in $sysInfo.Disks) {
-                $diskStrings += "$($disk.Name): $($disk.FreeGB)GB free"
+                $color = if ($disk.Percentage -gt 90) { "Red" } elseif ($disk.Percentage -gt 75) { "Yellow" } else { "Green" }
+                Write-Host "  $($disk.Name): " -NoNewline -ForegroundColor Gray
+                Write-Host "$($disk.FreeGB) GB free" -NoNewline -ForegroundColor White
+                Write-Host " ($($disk.Percentage)% used)" -ForegroundColor $color
             }
-            Write-Host ($diskStrings -join ' | ') -ForegroundColor Gray
-        }
-        else {
-            Write-Host "No disk information available" -ForegroundColor Yellow
+        } else {
+            Write-Host "  No disk information available" -ForegroundColor Yellow
         }
         
         Write-Host ""
