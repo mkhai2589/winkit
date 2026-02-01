@@ -1,130 +1,179 @@
-# ==========================================
-# WinKit Core Interface
-# Abstraction layer for features to interact with core system
-# ==========================================
+# ===============================
+# WinKit - Interface Layer
+# Unified user interaction
+# ===============================
 
-#region LOGGING INTERFACE
-function Write-WKLog {
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$Message,
-        
-        [ValidateSet('INFO', 'WARN', 'ERROR', 'DEBUG')]
-        [string]$Level = 'INFO',
-        
-        [string]$Feature = 'System'
+# --------- Internal helpers ---------
+
+function Write-WKLine {
+    param (
+        [string]$Text = "",
+        [ConsoleColor]$Color = [ConsoleColor]::Gray,
+        [switch]$NoNewLine
     )
-    
-    # Get timestamp
-    $time = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    
-    # Format message
-    $logMessage = "$time [$Level] [$Feature] - $Message"
-    
-    # Write to log file
-    $logMessage | Out-File -Append -FilePath $global:WK_LOG
-    
-    # Also show in console for DEBUG level (if needed)
-    if ($Level -eq 'DEBUG' -and $global:WK_DEBUG) {
-        Write-Host "[DEBUG] $Message" -ForegroundColor DarkGray
+
+    if ($NoNewLine) {
+        Write-Host $Text -ForegroundColor $Color -NoNewline
+    } else {
+        Write-Host $Text -ForegroundColor $Color
     }
 }
 
-function Clear-WKLog {
-    param()
-    
-    if (Test-Path $global:WK_LOG) {
-        Remove-Item $global:WK_LOG -Force
-        Write-WKLog -Message "Log file cleared" -Level INFO -Feature "Interface"
-    }
-}
-#endregion
-
-#region CONFIRMATION INTERFACE
-function Get-WKConfirm {
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$Message,
-        
-        [string]$Title = "Confirmation Required",
-        
-        [switch]$Dangerous
+function Write-WKSeparator {
+    param (
+        [string]$Char = "=",
+        [int]$Length = 60
     )
-    
-    # Show proper UI for confirmation
-    Write-Host "`n" + ("=" * 60) -ForegroundColor DarkGray
-    
+
+    Write-Host ($Char * $Length) -ForegroundColor DarkGray
+}
+
+# --------- Message types ---------
+
+function Write-WKInfo {
+    param ([string]$Message)
+    Write-WKLine "[*] $Message" Cyan
+}
+
+function Write-WKSuccess {
+    param ([string]$Message)
+    Write-WKLine "[+] $Message" Green
+}
+
+function Write-WKWarn {
+    param ([string]$Message)
+    Write-WKLine "[!] $Message" Yellow
+}
+
+function Write-WKError {
+    param ([string]$Message)
+    Write-WKLine "[X] $Message" Red
+}
+
+function Write-WKTitle {
+    param ([string]$Title)
+
+    Write-WKSeparator
+    Write-WKLine " $Title" White
+    Write-WKSeparator
+}
+
+# --------- User interaction ---------
+
+function Ask-WKConfirm {
+    param (
+        [string]$Message,
+        [switch]$DefaultYes,
+        [switch]$Dangerous  # NEW: For critical operations
+    )
+
     if ($Dangerous) {
-        Write-Host "⚠️  WARNING: POTENTIALLY DANGEROUS ACTION" -ForegroundColor Red
-        Write-Host ("=" * 60) -ForegroundColor DarkGray
+        Write-WKWarn "⚠️  CRITICAL OPERATION"
+        Write-WKSeparator
+        $prompt = "$Message Type 'YES' to confirm: "
+        Write-WKLine $prompt Red -NoNewLine
+        $input = Read-Host
+        return ($input -eq "YES")
     }
-    
-    Write-Host "$Title" -ForegroundColor Yellow
-    Write-Host ("-" * 60) -ForegroundColor DarkGray
-    Write-Host "$Message" -ForegroundColor White
-    
-    if ($Dangerous) {
-        Write-Host "`nType 'YES' (uppercase) to confirm: " -ForegroundColor Red -NoNewline
-        $confirm = Read-Host
-        return ($confirm -eq "YES")
+    elseif ($DefaultYes) {
+        $prompt = "$Message [Y/n]: "
+    } else {
+        $prompt = "$Message [y/N]: "
     }
-    else {
-        Write-Host "`nContinue? [Y/N]: " -ForegroundColor Yellow -NoNewline
-        $confirm = Read-Host
-        return ($confirm -eq "y" -or $confirm -eq "Y")
-    }
-}
 
-function Get-WKChoice {
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$Message,
-        
-        [string[]]$Options,
-        
-        [int]$Default = 0
-    )
-    
-    Write-Host "`n$Message" -ForegroundColor Cyan
-    
-    for ($i = 0; $i -lt $Options.Count; $i++) {
-        if ($i -eq $Default) {
-            Write-Host "[$i] $($Options[$i]) <DEFAULT>" -ForegroundColor Green
-        }
-        else {
-            Write-Host "[$i] $($Options[$i])" -ForegroundColor White
-        }
-    }
-    
-    Write-Host "`nYour choice [$Default]: " -ForegroundColor Yellow -NoNewline
+    Write-WKLine $prompt Yellow -NoNewLine
     $input = Read-Host
-    
-    if ([string]::IsNullOrWhiteSpace($input)) {
-        return $Default
-    }
-    
-    if ($input -match '^\d+$' -and [int]$input -lt $Options.Count) {
-        return [int]$input
-    }
-    
-    Write-Host "Invalid selection, using default." -ForegroundColor Red
-    return $Default
-}
-#endregion
+    $input = $input.Trim().ToLower()
 
-#region FEATURE METADATA INTERFACE
+    if ([string]::IsNullOrEmpty($input)) {
+        return $DefaultYes.IsPresent
+    }
+
+    return ($input -eq "y" -or $input -eq "yes")
+}
+
+function Pause-WK {
+    param (
+        [string]$Message = "Press Enter to continue..."
+    )
+
+    Write-WKLine ""
+    Write-WKLine $Message DarkGray
+    [void][System.Console]::ReadLine()
+}
+
+function Ask-WKChoice {
+    param (
+        [string]$Prompt,
+        [array]$Options
+    )
+
+    if (-not $Options -or $Options.Count -eq 0) {
+        throw "Ask-WKChoice: Options list is empty."
+    }
+
+    Write-WKLine $Prompt Cyan
+
+    for ($i = 0; $i -lt $Options.Count; $i++) {
+        Write-WKLine (" {0}. {1}" -f ($i + 1), $Options[$i]) Gray
+    }
+
+    while ($true) {
+        Write-WKLine "Select option [1-$($Options.Count)]: " Yellow -NoNewLine
+        $choice = Read-Host
+
+        if ($choice -match '^\d+$') {
+            $num = [int]$choice
+            if ($num -ge 1 -and $num -le $Options.Count) {
+                return $num
+            }
+        }
+
+        Write-WKWarn "Invalid selection. Try again."
+    }
+}
+
+# --------- Critical operation wrapper ---------
+
+function Invoke-WKSafely {
+    param (
+        [string]$Title,
+        [scriptblock]$Action
+    )
+
+    Write-WKTitle $Title
+
+    try {
+        & $Action
+        Write-WKSuccess "Completed successfully."
+    }
+    catch {
+        Write-WKError $_.Exception.Message
+        throw
+    }
+}
+
+# --------- Minimal Core Abstraction (NEW) ---------
+
+function Write-WKLog {
+    param (
+        [string]$Message,
+        [string]$Feature = "System"  # Optional feature name for logging
+    )
+    
+    # Simple wrapper around existing Write-Log
+    # This keeps feature from calling core directly
+    $time = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    "$time [$Feature] - $Message" | Out-File -Append $global:WK_LOG
+}
+
 function Get-WKFeatureMetadata {
-    param(
+    param (
         [string]$FeatureId
     )
     
-    # Read config.json
+    # Simple metadata reader
     $configPath = Join-Path $global:WK_ROOT "config.json"
-    
-    if (-not (Test-Path $configPath)) {
-        throw "Configuration file not found"
-    }
-    
     $config = Get-Content $configPath -Raw | ConvertFrom-Json
     
     if ($FeatureId) {
@@ -134,41 +183,20 @@ function Get-WKFeatureMetadata {
     return $config.features
 }
 
-function Test-WKFeatureRequirements {
-    param(
-        [Parameter(Mandatory=$true)]
-        [PSCustomObject]$Feature
+function Test-WKFeatureAvailable {
+    param (
+        [string]$FeatureId
     )
     
-    # Check admin requirement
-    if ($Feature.requireAdmin) {
-        $id = [Security.Principal.WindowsIdentity]::GetCurrent()
-        $p = New-Object Security.Principal.WindowsPrincipal($id)
-        
-        if (-not $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-            throw "This feature requires Administrator privileges."
-        }
-    }
+    $feature = Get-WKFeatureMetadata -FeatureId $FeatureId
+    if (-not $feature) { return $false }
     
-    # Check OS requirement (if specified)
-    if ($Feature.supportedOS) {
-        $currentOS = [System.Environment]::OSVersion.Version.Major
-        if ($currentOS -notin $Feature.supportedOS) {
-            Write-WKLog -Message "Unsupported OS for feature: $($Feature.id)" -Level WARN
-            Write-Host "Warning: This feature is designed for different Windows versions." -ForegroundColor Yellow
-            if (-not (Get-WKConfirm -Message "Continue anyway?")) {
-                throw "Feature cancelled by user"
-            }
-        }
-    }
-    
-    return $true
+    $featurePath = Join-Path $global:WK_FEATURES $feature.file
+    return Test-Path $featurePath
 }
-#endregion
 
-#region UTILITY INTERFACE
 function Show-WKProgress {
-    param(
+    param (
         [string]$Activity,
         [string]$Status,
         [int]$PercentComplete = -1
@@ -185,125 +213,3 @@ function Show-WKProgress {
 function Complete-WKProgress {
     Write-Progress -Completed
 }
-
-function Invoke-WKSafeCommand {
-    param(
-        [Parameter(Mandatory=$true)]
-        [scriptblock]$Command,
-        
-        [string]$ErrorMessage = "Command failed",
-        
-        [switch]$SuppressErrors
-    )
-    
-    try {
-        $output = & $Command
-        Write-WKLog -Message "Command executed successfully: $($Command.ToString())" -Level INFO
-        return $output
-    }
-    catch {
-        Write-WKLog -Message "$ErrorMessage: $_" -Level ERROR
-        
-        if (-not $SuppressErrors) {
-            Write-Host "ERROR: $ErrorMessage" -ForegroundColor Red
-            Write-Host "Details: $_" -ForegroundColor DarkRed
-        }
-        
-        return $null
-    }
-}
-
-function Format-WKTime {
-    param(
-        [int]$Seconds
-    )
-    
-    if ($Seconds -lt 60) {
-        return "${Seconds}s"
-    }
-    elseif ($Seconds -lt 3600) {
-        $minutes = [math]::Floor($Seconds / 60)
-        $remaining = $Seconds % 60
-        return "${minutes}m ${remaining}s"
-    }
-    else {
-        $hours = [math]::Floor($Seconds / 3600)
-        $minutes = [math]::Floor(($Seconds % 3600) / 60)
-        return "${hours}h ${minutes}m"
-    }
-}
-#endregion
-
-#region SYSTEM INFO INTERFACE
-function Get-WKSystemInfo {
-    $info = @{
-        PSVersion = $PSVersionTable.PSVersion.ToString()
-        OSVersion = [System.Environment]::OSVersion.Version.ToString()
-        MachineName = [System.Environment]::MachineName
-        UserName = [System.Environment]::UserName
-        Is64Bit = [System.Environment]::Is64BitOperatingSystem
-        CurrentTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        WKRoot = $global:WK_ROOT
-    }
-    
-    return $info
-}
-
-function Test-WKFeatureAvailable {
-    param(
-        [string]$FeatureId
-    )
-    
-    $features = Get-WKFeatureMetadata
-    
-    foreach ($feature in $features) {
-        if ($feature.id -eq $FeatureId) {
-            $featurePath = Join-Path $global:WK_FEATURES $feature.file
-            return Test-Path $featurePath
-        }
-    }
-    
-    return $false
-}
-#endregion
-
-#region BACKUP INTERFACE (for future rollback features)
-function New-WKBackupPoint {
-    param(
-        [string]$Description,
-        [string]$FeatureId
-    )
-    
-    $backupDir = Join-Path $global:WK_ROOT "backups"
-    if (-not (Test-Path $backupDir)) {
-        New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
-    }
-    
-    $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-    $backupFile = Join-Path $backupDir "${timestamp}_${FeatureId}.json"
-    
-    $backupData = @{
-        Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        Description = $Description
-        FeatureId = $FeatureId
-        SystemInfo = Get-WKSystemInfo
-    }
-    
-    $backupData | ConvertTo-Json | Out-File -FilePath $backupFile
-    
-    Write-WKLog -Message "Backup point created: $backupFile" -Level INFO -Feature $FeatureId
-    return $backupFile
-}
-#endregion
-
-# Initialize global variables if they don't exist
-if (-not $global:WK_LOG) {
-    $global:WK_LOG = Join-Path $env:TEMP "winkit.log"
-}
-
-if (-not $global:WK_DEBUG) {
-    $global:WK_DEBUG = $false
-}
-
-# Log interface initialization
-Write-WKLog -Message "Interface module initialized" -Level INFO -Feature "Interface"
