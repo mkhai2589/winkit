@@ -1,69 +1,105 @@
+# ==========================================
+# WinKit Main Menu Module
+# Data-driven menu system
+# ==========================================
+
 function Show-MainMenu {
-    Clear-Host
-    Initialize-UI
+    while ($true) {
+        try {
+            Clear-Host
+            Initialize-UI
+            Show-Header
+            
+            # Load menu configuration
+            $configPath = Join-Path $WK_ROOT "config.json"
+            if (-not (Test-Path $configPath)) {
+                throw "Configuration file not found at: $configPath"
+            }
+            
+            $config = Read-Json -Path $configPath
+            $features = $config.features | Sort-Object order
+            
+            # Display menu items
+            Write-Host "`nMAIN MENU" -ForegroundColor $WK_THEME.Accent
+            Write-Host "══════════════════════════════════════════" -ForegroundColor $WK_THEME.Border
+            
+            foreach ($feature in $features) {
+                Write-Host "[$($feature.order)]" -NoNewline -ForegroundColor $WK_THEME.MenuItem
+                Write-Host " $($feature.title)" -ForegroundColor $WK_THEME.Primary
+                
+                if ($feature.description) {
+                    Write-Host "    $($feature.description)" -ForegroundColor $WK_THEME.Description
+                }
+                
+                Write-Host ""
+            }
+            
+            Write-Host "[0]" -NoNewline -ForegroundColor $WK_THEME.Error
+            Write-Host " Exit" -ForegroundColor $WK_THEME.Primary
+            
+            Show-Footer
+            
+            # Get user input
+            Write-Host "`nSelect option: " -NoNewline -ForegroundColor $WK_THEME.Accent
+            $choice = Read-Host
+            
+            if ($choice -eq "0") {
+                Write-Log -Message "User exited application" -Level "INFO"
+                exit 0
+            }
+            
+            # Find selected feature
+            $selected = $features | Where-Object { $_.order -eq [int]$choice }
+            
+            if (-not $selected) {
+                Write-Host "`nInvalid selection!" -ForegroundColor $WK_THEME.Error
+                Pause
+                continue
+            }
+            
+            # Execute selected feature
+            Invoke-Feature -Feature $selected
+            
+        }
+        catch {
+            Write-Host "`nMenu Error: $_" -ForegroundColor $WK_THEME.Error
+            Pause
+        }
+    }
+}
 
+function Invoke-Feature {
+    param(
+        [Parameter(Mandatory=$true)]
+        [PSCustomObject]$Feature
+    )
+    
     try {
-        # Build config path and check
-        $configPath = Join-Path $WK_ROOT "config.json"
-        
-        if (-not (Test-Path $configPath)) {
-            Write-Host "ERROR: Config file not found at:`n$configPath" -ForegroundColor Red
-            Pause
-            exit 1
-        }
-
-        # Read config
-        $config = Read-Json -Path $configPath
-        $features = $config.features | Sort-Object order
-
-        # Display menu
-        Write-Host "MAIN MENU" -ForegroundColor Cyan
-        Write-Host "-------------------------------------"
-        
-        foreach ($f in $features) {
-            Write-Host "[$($f.order)] $($f.title)" -ForegroundColor Green
-        }
-
-        Write-Host "[0] Exit" -ForegroundColor Yellow
-        Show-Footer
-
-        Write-Host ""
-        $choice = Read-Host "Select option"
-
-        if ($choice -eq "0") { exit }
-
-        $selected = $features | Where-Object { $_.order -eq [int]$choice }
-
-        if (-not $selected) {
-            Write-Host "Invalid selection." -ForegroundColor Red
-            Pause
-            return Show-MainMenu
-        }
-
-        $featurePath = Join-Path $WK_FEATURES $selected.file
-
+        # Check if feature file exists
+        $featurePath = Join-Path $WK_FEATURES $Feature.file
         if (-not (Test-Path $featurePath)) {
-            Write-Host "Feature file not found: $featurePath" -ForegroundColor Red
-            Pause
-            return Show-MainMenu
+            throw "Feature file not found: $featurePath"
         }
-
-        # Load and execute feature
-        . $featurePath
-        $functionName = "Start-$($selected.id)"
         
+        # Load feature module
+        . $featurePath
+        
+        # Execute feature function
+        $functionName = "Start-$($Feature.id)"
         if (Get-Command $functionName -ErrorAction SilentlyContinue) {
+            Write-Log -Message "Executing feature: $($Feature.id)" -Level "INFO"
             & $functionName
         }
         else {
-            Write-Host "Feature function not found: $functionName" -ForegroundColor Red
+            throw "Feature function '$functionName' not found"
         }
     }
     catch {
-        Write-Host "Error in main menu: $_" -ForegroundColor Red
-        Pause
+        Write-Host "`nFeature Error: $_" -ForegroundColor $WK_THEME.Error
+        Write-Log -Message "Feature execution failed: $_" -Level "ERROR"
     }
     
     # Return to menu
-    Show-MainMenu
+    Write-Host "`n" -NoNewline
+    Pause -Message "Return to main menu..."
 }
