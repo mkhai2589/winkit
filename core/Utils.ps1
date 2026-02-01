@@ -5,21 +5,13 @@
 
 function Read-Json {
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory=$true)]  # This makes Path mandatory
         [string]$Path
     )
-    
     if (-not (Test-Path $Path)) {
         throw "JSON file not found: $Path"
     }
-    
-    try {
-        $content = Get-Content $Path -Raw -ErrorAction Stop
-        return $content | ConvertFrom-Json
-    }
-    catch {
-        throw "Failed to read JSON from $Path : $_"
-    }
+    Get-Content $Path -Raw | ConvertFrom-Json
 }
 
 function Write-Json {
