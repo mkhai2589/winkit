@@ -1,26 +1,27 @@
 # ==========================================
-# WinKit - Single Line Installer & Launcher
+# WinKit Online Bootstrap
+# Single-line installer: irm URL | iex
 # ==========================================
 
-# Exit on any error
+# Set strict error handling
 $ErrorActionPreference = "Stop"
 
-# Set Execution Policy for this session only
+# Bypass execution policy for this session only
 try {
     Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force -ErrorAction SilentlyContinue
 }
 catch {
-    # Continue if we can't change policy
+    # Continue execution even if policy can't be changed
 }
 
 # Configuration
 $WK_ROOT = Join-Path $env:TEMP "winkit"
 $REPO = "https://raw.githubusercontent.com/mkhai2589/winkit/main"
 
-# All required files
+# List of required files (maintains directory structure)
 $FILES = @(
     "Loader.ps1",
-    "Dashboard.ps1",  # Renamed from Menu.ps1
+    "Menu.ps1",
     "config.json",
     "version.json",
     "core/Logger.ps1",
@@ -28,41 +29,42 @@ $FILES = @(
     "core/Utils.ps1",
     "core/Interface.ps1",
     "ui/Theme.ps1",
-    "ui/UI.ps1",
-    "features/01_CleanSystem.ps1"
+    "ui/UI.ps1"
 )
 
-# Clear console and show header
+# Clear screen and show welcome message
 Clear-Host
-Write-Host "=========================================" -ForegroundColor Cyan
-Write-Host "    WinKit - Windows Optimization Toolkit" -ForegroundColor White
-Write-Host "=========================================" -ForegroundColor Cyan
+Write-Host "╔══════════════════════════════════════════╗" -ForegroundColor Cyan
+Write-Host "║         WinKit - Setup                   ║" -ForegroundColor White
+Write-Host "╚══════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host "Downloading latest version..." -ForegroundColor Yellow
 
-# Create directory if needed
+# Create working directory
 if (-not (Test-Path $WK_ROOT)) {
     New-Item -ItemType Directory -Path $WK_ROOT -Force | Out-Null
 }
 
-# Download all files
+# Download each file
 $success = $true
-foreach ($f in $FILES) {
+foreach ($relativePath in $FILES) {
     try {
-        $dest = Join-Path $WK_ROOT $f
-        $dir = Split-Path $dest -Parent
+        $remoteUrl = "$REPO/$relativePath"
+        $localPath = Join-Path $WK_ROOT $relativePath
+        $directory = Split-Path $localPath -Parent
         
-        # Create directory structure
-        if (-not (Test-Path $dir)) {
-            New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        # Create directory if it doesn't exist
+        if (-not (Test-Path $directory)) {
+            New-Item -ItemType Directory -Path $directory -Force | Out-Null
         }
         
         # Download file
-        Write-Host "  [✓] $f" -ForegroundColor Gray
-        Invoke-WebRequest "$REPO/$f" -UseBasicParsing -OutFile $dest -ErrorAction Stop
+        Write-Host "  → $relativePath" -ForegroundColor Gray
+        Invoke-WebRequest -Uri $remoteUrl -UseBasicParsing -OutFile $localPath -ErrorAction Stop
+        
     }
     catch {
-        Write-Host "  [✗] $f" -ForegroundColor Red
-        Write-Host "      Error: $_" -ForegroundColor DarkRed
+        Write-Host "  ✗ Failed: $relativePath" -ForegroundColor Red
+        Write-Host "    Error: $_" -ForegroundColor DarkRed
         $success = $false
     }
 }
@@ -70,22 +72,24 @@ foreach ($f in $FILES) {
 # Check if download was successful
 if (-not $success) {
     Write-Host "`nSome files failed to download." -ForegroundColor Red
-    Write-Host "Please check your internet connection and try again." -ForegroundColor Yellow
-    Read-Host "`nPress Enter to exit"
+    Write-Host "Check your internet connection and try again." -ForegroundColor Yellow
+    Write-Host "`nPress Enter to exit..." -ForegroundColor Gray
+    [Console]::ReadKey($true) | Out-Null
     exit 1
 }
 
-Write-Host "`nDownload complete! Starting WinKit..." -ForegroundColor Green
+Write-Host "`n✓ Download complete!" -ForegroundColor Green
+Write-Host "Starting WinKit..." -ForegroundColor Cyan
 Start-Sleep -Seconds 1
 
-# Load and execute
+# Load and execute WinKit
 try {
     . "$WK_ROOT\Loader.ps1"
     Start-WinKit
 }
 catch {
-    Write-Host "`nERROR: Failed to start WinKit" -ForegroundColor Red
-    Write-Host "Details: $_" -ForegroundColor DarkRed
-    Read-Host "`nPress Enter to exit"
+    Write-Host "`nFailed to start WinKit: $_" -ForegroundColor Red
+    Write-Host "`nPress Enter to exit..." -ForegroundColor Gray
+    [Console]::ReadKey($true) | Out-Null
     exit 1
 }
