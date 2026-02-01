@@ -9,8 +9,8 @@ function Start-WinKit {
     . "$WK_ROOT\core\Security.ps1"
     . "$WK_ROOT\core\Utils.ps1"
     . "$WK_ROOT\core\Logger.ps1"
-    . "$WK_ROOT\core\Interface.ps1"    # <--- THÊM DÒNG NÀY
-
+    . "$WK_ROOT\core\Interface.ps1"   
+    
     # UI modules
     . "$WK_ROOT\ui\Theme.ps1"
     . "$WK_ROOT\ui\UI.ps1"
@@ -24,9 +24,8 @@ function Start-WinKit {
         Show-MainMenu
     }
     catch {
-        Write-Host "`nERROR: $($_.Exception.Message)" -ForegroundColor Red
-        Write-Host "`nPress Enter to exit..."
-        [Console]::ReadKey($true)
+        Write-WKError $_.Exception.Message
+        Pause-WK
         exit 1
     }
 }
