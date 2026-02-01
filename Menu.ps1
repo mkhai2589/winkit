@@ -44,7 +44,7 @@ function Show-MainMenu {
             $choice = Read-Host
             
             if ($choice -eq "0") {
-                Write-Log -Message "User exited application" -Level "INFO"
+                try { Write-Log -Message "User exited application" -Level "INFO" } catch {}
                 exit 0
             }
             
@@ -87,7 +87,7 @@ function Invoke-Feature {
         # Execute feature function
         $functionName = "Start-$($Feature.id)"
         if (Get-Command $functionName -ErrorAction SilentlyContinue) {
-            Write-Log -Message "Executing feature: $($Feature.id)" -Level "INFO"
+            try { Write-Log -Message "Executing feature: $($Feature.id)" -Level "INFO" } catch {}
             & $functionName
         }
         else {
@@ -96,7 +96,7 @@ function Invoke-Feature {
     }
     catch {
         Write-Host "`nFeature Error: $_" -ForegroundColor $WK_THEME.Error
-        Write-Log -Message "Feature execution failed: $_" -Level "ERROR"
+        try { Write-Log -Message "Feature execution failed: $_" -Level "ERROR" } catch {}
     }
     
     # Return to menu
