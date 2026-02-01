@@ -1,6 +1,5 @@
 # ==========================================
-# WinKit Core Interface
-# Abstraction layer for features
+# WinKit Core Interface - OPTIMIZED
 # ==========================================
 
 #region LOGGING INTERFACE
@@ -9,7 +8,7 @@ function Write-WKLog {
         [Parameter(Mandatory=$true)]
         [string]$Message,
         
-        [ValidateSet('INFO', 'WARN', 'ERROR', 'DEBUG')]
+        [ValidateSet('INFO', 'WARN', 'ERROR')]
         [string]$Level = 'INFO',
         
         [string]$Feature = 'System'
@@ -18,20 +17,18 @@ function Write-WKLog {
     try {
         $time = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
         $logMessage = "$time [$Level] [$Feature] - $Message"
-        $logMessage | Out-File -Append -FilePath $global:WK_LOG
+        
+        # Ensure log file exists
+        $logDir = Split-Path $global:WK_LOG -Parent
+        if (-not (Test-Path $logDir)) {
+            New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+        }
+        
+        $logMessage | Out-File -Append -FilePath $global:WK_LOG -Encoding UTF8
     }
     catch {
         # Silent fail for logging errors
     }
-}
-
-function Clear-WKLog {
-    try {
-        if (Test-Path $global:WK_LOG) {
-            Remove-Item $global:WK_LOG -Force
-        }
-    }
-    catch {}
 }
 #endregion
 
@@ -41,7 +38,8 @@ function Get-WKConfirm {
         [Parameter(Mandatory=$true)]
         [string]$Message,
         
-        [switch]$Dangerous
+        [switch]$Dangerous,
+        [switch]$DefaultYes
     )
     
     Write-Host ""
@@ -50,14 +48,26 @@ function Get-WKConfirm {
         Write-Host "⚠️  WARNING: CRITICAL OPERATION" -ForegroundColor Red
         Write-Host "----------------------------------------" -ForegroundColor DarkRed
         Write-Host "$Message" -ForegroundColor White
-        Write-Host "Type 'YES' (uppercase) to confirm: " -ForegroundColor Red -NoNewline
+        Write-Host "Type 'YES' to confirm: " -ForegroundColor Red -NoNewline
         $confirm = Read-Host
         return ($confirm -eq "YES")
     }
     else {
-        Write-Host "$Message [y/N]: " -ForegroundColor Yellow -NoNewline
+        if ($DefaultYes) {
+            Write-Host "$Message [Y/n]: " -ForegroundColor Yellow -NoNewline
+        }
+        else {
+            Write-Host "$Message [y/N]: " -ForegroundColor Yellow -NoNewline
+        }
+        
         $confirm = Read-Host
-        return ($confirm -eq "y" -or $confirm -eq "Y")
+        $confirm = $confirm.Trim().ToLower()
+        
+        if ([string]::IsNullOrEmpty($confirm)) {
+            return $DefaultYes
+        }
+        
+        return ($confirm -eq "y" -or $confirm -eq "yes")
     }
 }
 
@@ -68,44 +78,37 @@ function Pause-WK {
     
     Write-Host ""
     Write-Host $Message -ForegroundColor DarkGray
-    [Console]::ReadKey($true)
+    [Console]::ReadKey($true) | Out-Null
 }
 #endregion
 
-#region FEATURE METADATA
-function Get-WKFeatureMetadata {
-    param([string]$FeatureId)
-    
-    $configPath = Join-Path $global:WK_ROOT "config.json"
-    if (-not (Test-Path $configPath)) {
-        throw "Configuration file not found"
-    }
-    
-    $config = Get-Content $configPath -Raw | ConvertFrom-Json
-    
-    if ($FeatureId) {
-        return $config.features | Where-Object { $_.id -eq $FeatureId }
-    }
-    
-    return $config.features
-}
-
+#region FEATURE HELPERS
 function Test-WKFeatureAvailable {
     param([string]$FeatureId)
     
-    $feature = Get-WKFeatureMetadata -FeatureId $FeatureId
-    if (-not $feature) { return $false }
-    
-    $featurePath = Join-Path $global:WK_FEATURES $feature.file
-    return Test-Path $featurePath
+    try {
+        $configPath = Join-Path $global:WK_ROOT "config.json"
+        if (-not (Test-Path $configPath)) {
+            return $false
+        }
+        
+        $config = Get-Content $configPath -Raw | ConvertFrom-Json
+        $feature = $config.features | Where-Object { $_.id -eq $FeatureId }
+        
+        if (-not $feature) { return $false }
+        
+        $featurePath = Join-Path $global:WK_FEATURES $feature.file
+        return Test-Path $featurePath
+    }
+    catch {
+        return $false
+    }
 }
-#endregion
 
-#region UTILITIES
 function Show-WKProgress {
     param(
         [string]$Activity,
-        [string]$Status,
+        [string]$Status = "Processing...",
         [int]$PercentComplete = -1
     )
     
@@ -120,36 +123,4 @@ function Show-WKProgress {
 function Complete-WKProgress {
     Write-Progress -Completed
 }
-
-function Get-WKChoice {
-    param(
-        [string]$Prompt,
-        [array]$Options
-    )
-    
-    Write-Host "`n$Prompt" -ForegroundColor Cyan
-    
-    for ($i = 0; $i -lt $Options.Count; $i++) {
-        Write-Host "  [$($i+1)] $($Options[$i])" -ForegroundColor Gray
-    }
-    
-    while ($true) {
-        Write-Host "`nSelect option [1-$($Options.Count)]: " -ForegroundColor Yellow -NoNewline
-        $choice = Read-Host
-        
-        if ($choice -match '^\d+$') {
-            $num = [int]$choice
-            if ($num -ge 1 -and $num -le $Options.Count) {
-                return $num
-            }
-        }
-        
-        Write-Host "Invalid selection. Please try again." -ForegroundColor Red
-    }
-}
 #endregion
-
-# Initialize if needed
-if (-not $global:WK_LOG) {
-    $global:WK_LOG = Join-Path $env:TEMP "winkit.log"
-}
