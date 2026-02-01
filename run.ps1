@@ -1,10 +1,15 @@
-# ===============================
-# WinKit - Ghost Toolbox UI
-# ===============================
+Set-ExecutionPolicy Bypass -Scope Process -Force
 
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+$root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
-. "$Root\ui\Dashboard.ps1"
+. "$root\core\Loader.ps1"
+. "$root\core\Menu.ps1"
 
-Show-Dashboard
+Load-WinKitModules
+
+while ($true) {
+    Clear-Host
+    Write-Host "===== WinKit Toolbox =====" -ForegroundColor Cyan
+    Show-WinKitMenu
+    Invoke-WinKitSelection
+}
