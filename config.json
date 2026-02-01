@@ -1,12 +1,20 @@
 {
+  "name": "WinKit",
+  "version": "0.1.0",
   "features": [
     {
       "id": "CleanSystem",
       "order": 1,
       "title": "Clean System",
-      "description": "Clean temp files and caches",
+      "description": "Clean temp files and system caches",
       "file": "01_CleanSystem.ps1",
-      "requireAdmin": true
+      "requireAdmin": true,
+      "supportedOS": [10, 11],
+      "metadata": {
+        "category": "Maintenance",
+        "author": "WinKit Team",
+        "lastUpdated": "2024-01-01"
+      }
     }
   ]
 }
