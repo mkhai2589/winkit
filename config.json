@@ -1,0 +1,12 @@
+{
+  "features": [
+    {
+      "id": "CleanSystem",
+      "order": 1,
+      "title": "Clean System",
+      "description": "Clean temp files and caches",
+      "file": "01_CleanSystem.ps1",
+      "requireAdmin": true
+    }
+  ]
+}
