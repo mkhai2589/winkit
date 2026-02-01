@@ -1,15 +1,26 @@
+# ===============================
+# WinKit Entry Point
+# ===============================
+
 Set-ExecutionPolicy Bypass -Scope Process -Force
 
-$root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-. "$root\core\Loader.ps1"
-. "$root\core\Menu.ps1"
+# Load core
+. "$Root\core\Utils.ps1"
+. "$Root\core\Security.ps1"
+. "$Root\core\Environment.ps1"
+. "$Root\core\Loader.ps1"
+. "$Root\core\Menu.ps1"
 
+# Load UI
+. "$Root\ui\Theme.ps1"
+. "$Root\ui\Header.ps1"
+. "$Root\ui\Footer.ps1"
+. "$Root\ui\Dashboard.ps1"
+
+Initialize-Security
+Initialize-Environment
 Load-WinKitModules
 
-while ($true) {
-    Clear-Host
-    Write-Host "===== WinKit Toolbox =====" -ForegroundColor Cyan
-    Show-WinKitMenu
-    Invoke-WinKitSelection
-}
+Start-WinKit
