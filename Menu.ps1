@@ -5,27 +5,22 @@ function Show-MainMenu {
             Show-Header
             Show-SystemInfoBar
             
-            # Lấy danh sách feature đã tự đăng ký
             $allFeatures = Get-AllFeatures
             
             if ($allFeatures.Count -eq 0) {
                 Write-Padded "No features available. Please check feature files." -Color Red
-                Write-Padded ""  # Empty line
+                Write-Padded ""
                 Write-Padded "Press any key to exit..." -NoNewline -Color DarkGray
                 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
                 exit 1
             }
             
-            # Sắp xếp features
             Sort-FeaturesByConfigOrder
             
-            # Hiển thị menu theo kiến trúc: Essential/Advanced 2 cột, Tools full width
             Render-MenuByArchitecture
             
-            # FOOTER với status
             Show-Footer -Status "READY"
             
-            # XỬ LÝ INPUT - Menu chỉ gọi hàm, không chứa logic feature
             Handle-UserInput -Features $allFeatures
             
         }
@@ -38,49 +33,43 @@ function Show-MainMenu {
 }
 
 function Render-MenuByArchitecture {
-    # Lấy category order từ config hoặc mặc định
     $categoryOrder = if ($global:WK_CONFIG -and $global:WK_CONFIG.ui -and $global:WK_CONFIG.ui.categoryOrder) {
         $global:WK_CONFIG.ui.categoryOrder
-    } else {
+    }
+    else {
         @("Essential", "Advanced", "Tools")
     }
     
-    Write-Padded ""  # Empty line before menu
+    Write-Padded ""
     
-    # 1. Essential (Left) và Advanced (Right) - 2 cột
     $essentialFeatures = Get-FeaturesByCategory -Category "Essential"
     $advancedFeatures = Get-FeaturesByCategory -Category "Advanced"
     
     if ($essentialFeatures.Count -gt 0 -or $advancedFeatures.Count -gt 0) {
-        # Calculate max rows needed
         $maxRows = [math]::Max($essentialFeatures.Count, $advancedFeatures.Count)
         
-        # Display section headers side by side
         $essentialHeader = "[ Essential ]"
         $advancedHeader = "[ Advanced ]"
         
-        # Calculate padding để canh 2 cột
         $colWidth = 38
         $leftPadding = $colWidth - $essentialHeader.Length
         $headerLine = $essentialHeader + (" " * $leftPadding) + $advancedHeader
         
         Write-Padded $headerLine -Color Green
-        Write-Padded ""  # Empty line
+        Write-Padded ""
         
-        # Display features in parallel columns
         for ($i = 0; $i -lt $maxRows; $i++) {
-            $line = "  "  # Indentation
+            $line = "  "
             
-            # Essential column
             if ($i -lt $essentialFeatures.Count) {
                 $feature1 = $essentialFeatures[$i]
                 $col1 = "[$($feature1.Order)] $($feature1.Title)"
                 $line += $col1.PadRight($colWidth)
-            } else {
+            }
+            else {
                 $line += "".PadRight($colWidth)
             }
             
-            # Advanced column
             if ($i -lt $advancedFeatures.Count) {
                 $feature2 = $advancedFeatures[$i]
                 $col2 = "[$($feature2.Order)] $($feature2.Title)"
@@ -90,11 +79,10 @@ function Render-MenuByArchitecture {
             Write-Padded $line -Color White
         }
         
-        Write-Padded ""  # Empty line
+        Write-Padded ""
         Write-Separator
     }
     
-    # 2. Tools category (full width)
     $toolsFeatures = Get-FeaturesByCategory -Category "Tools"
     
     if ($toolsFeatures.Count -gt 0) {
@@ -104,13 +92,12 @@ function Render-MenuByArchitecture {
             Write-Padded "  [$($feature.Order)] $($feature.Title)" -Color White
         }
         
-        Write-Padded ""  # Empty line
+        Write-Padded ""
         Write-Separator
     }
     
-    # 3. Exit option
     Write-Padded "  [0] Exit" -Color Gray
-    Write-Padded ""  # Empty line
+    Write-Padded ""
     Write-Separator
 }
 
@@ -119,9 +106,9 @@ function Handle-UserInput {
     
     $maxOrder = if ($Features.Count -gt 0) { 
         ($Features | Measure-Object -Property Order -Maximum).Maximum 
-    } else { 0 }
+    }
+    else { 0 }
     
-    # Hiển thị prompt đúng format
     $promptText = "Select an option [0-$maxOrder]: "
     Write-Padded $promptText -NoNewline -Color Yellow
     
@@ -133,7 +120,6 @@ function Handle-UserInput {
         exit 0
     }
     
-    # Validate input
     if (-not ($choice -match '^\d+$')) {
         Write-Padded "Invalid input! Please enter a number." -Color Red
         Pause
@@ -148,7 +134,6 @@ function Handle-UserInput {
         return
     }
     
-    # Execute feature thông qua Interface
     Execute-Feature -Feature $selectedFeature
 }
 
@@ -156,35 +141,32 @@ function Execute-Feature([PSCustomObject]$Feature) {
     try {
         Clear-Host
         
-        # Feature header với border đúng chiều rộng - SỬA: Dùng ký tự ASCII
         $titleLine = "=== $($Feature.Title) "
         $remainingWidth = $global:WK_MENU_WIDTH - $titleLine.Length
         $borderLine = $titleLine + ("=" * [math]::Max(0, $remainingWidth))
         
         Write-Padded $borderLine -Color Cyan -IndentLevel 0
-        Write-Padded ""  # Empty line
+        Write-Padded ""
         
         if ($Feature.Description) {
             Write-Padded "  Description: $($Feature.Description)" -Color Gray
-            Write-Padded ""  # Empty line
+            Write-Padded ""
         }
         
         Write-Padded "  Category: $($Feature.Category)" -Color Gray
         Write-Padded "  File: $($Feature.FileName)" -Color Gray
         Write-Padded "  Source: $($Feature.Source)" -Color Gray
-        Write-Padded ""  # Empty line
+        Write-Padded ""
         
-        # Update footer status
         Show-Footer -Status "RUNNING: $($Feature.Title)"
-        Write-Padded ""  # Empty line
+        Write-Padded ""
         
-        # Execute feature thông qua Interface
         Write-Padded "Starting execution..." -Color Yellow
-        Write-Padded ""  # Empty line
+        Write-Padded ""
         
         Invoke-Feature -FeatureId $Feature.Id
         
-        Write-Padded ""  # Empty line
+        Write-Padded ""
         Write-Padded "Feature completed successfully!" -Color Green
         
         if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
@@ -206,7 +188,6 @@ function Execute-Feature([PSCustomObject]$Feature) {
 }
 
 function Show-Footer([string]$Status = "READY") {
-    # Determine color based on status
     $statusColor = switch -Wildcard ($Status) {
         "*READY*" { $global:WK_THEME.Ready }
         "*RUNNING*" { $global:WK_THEME.Running }
@@ -214,7 +195,7 @@ function Show-Footer([string]$Status = "READY") {
         default { "Cyan" }
     }
     
-    Write-Padded ""  # Empty line
+    Write-Padded ""
     Write-Padded ("-" * $global:WK_MENU_WIDTH) -Color DarkGray
     Write-Padded "Status: " -Color White -NoNewLine
     Write-Host $Status -ForegroundColor $statusColor -NoNewline
