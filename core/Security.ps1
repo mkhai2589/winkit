@@ -148,15 +148,3 @@ function Assert-Requirement {
         return $false
     }
 }
-
-# Export module functions
-$ExportFunctions = @(
-    'Test-IsAdmin',
-    'Test-PowerShellVersion',
-    'Test-IsOnline',
-    'Test-ExecutionPolicy',
-    'Get-SystemChecks',
-    'Assert-Requirement'
-)
-
-Export-ModuleMember -Function $ExportFunctions
