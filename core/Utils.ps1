@@ -148,15 +148,3 @@ function Format-TimeSpan {
         return "$([math]::Round($TimeSpan.TotalHours, 1)) hours"
     }
 }
-
-# Export module functions
-$ExportFunctions = @(
-    'Format-String',
-    'Get-DiskInfo',
-    'Test-IsElevated',
-    'Get-FormattedSize',
-    'Invoke-WithRetry',
-    'Format-TimeSpan'
-)
-
-Export-ModuleMember -Function $ExportFunctions
