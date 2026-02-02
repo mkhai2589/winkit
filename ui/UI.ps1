@@ -18,23 +18,23 @@ function Show-Header {
             Show-Logo
         }
         catch {
-            # Fallback simple header
-            Write-Padded "╔════════════════════════════════════════════════════════════════╗" -Color Cyan
-            Write-Padded "║  W I N K I T                                                   ║" -Color White
-            Write-Padded "║  Windows Optimization Toolkit                                  ║" -Color Gray
-            Write-Padded "║                                                                ║" -Color Cyan
-            Write-Padded "║  Author: Minh Khai | 0333 090 930                              ║" -Color Gray
-            Write-Padded "╚════════════════════════════════════════════════════════════════╝" -Color Cyan
+            # Fallback simple header - SỬA: Dùng ký tự ASCII
+            Write-Padded "================================================================" -Color Cyan
+            Write-Padded "  W I N K I T                                                   " -Color White
+            Write-Padded "  Windows Optimization Toolkit                                  " -Color Gray
+            Write-Padded "                                                                " -Color Cyan
+            Write-Padded "  Author: Minh Khai | 0333 090 930                              " -Color Gray
+            Write-Padded "================================================================" -Color Cyan
             Write-Host ""
         }
     }
     else {
-        Write-Padded "╔════════════════════════════════════════════════════════════════╗" -Color Cyan
-        Write-Padded "║  W I N K I T                                                   ║" -Color White
-        Write-Padded "║  Windows Optimization Toolkit                                  ║" -Color Gray
-        Write-Padded "║                                                                ║" -Color Cyan
-        Write-Padded "║  Author: Minh Khai | 0333 090 930                              ║" -Color Gray
-        Write-Padded "╚════════════════════════════════════════════════════════════════╝" -Color Cyan
+        Write-Padded "================================================================" -Color Cyan
+        Write-Padded "  W I N K I T                                                   " -Color White
+        Write-Padded "  Windows Optimization Toolkit                                  " -Color Gray
+        Write-Padded "                                                                " -Color Cyan
+        Write-Padded "  Author: Minh Khai | 0333 090 930                              " -Color Gray
+        Write-Padded "================================================================" -Color Cyan
         Write-Host ""
     }
 }
@@ -45,7 +45,7 @@ function Show-SystemInfoBar {
         
         Write-Padded ""  # Empty line
         Write-Padded "SYSTEM STATUS" -Color White
-        Write-Padded ("─" * $global:WK_MENU_WIDTH) -Color DarkGray
+        Write-Padded ("-" * $global:WK_MENU_WIDTH) -Color DarkGray
         Write-Padded ""  # Empty line
         
         # Line 1: OS + Shell + Privilege + Mode (all with labels)
@@ -100,7 +100,7 @@ function Show-SystemInfoBar {
         }
         
         Write-Padded ""  # Empty line
-        Write-Padded ("─" * $global:WK_MENU_WIDTH) -Color DarkGray
+        Write-Padded ("-" * $global:WK_MENU_WIDTH) -Color DarkGray
         Write-Padded ""  # Empty line
         
     }
@@ -144,6 +144,6 @@ function Write-Section {
 }
 
 function Write-Separator {
-    Write-Padded ("─" * $global:WK_MENU_WIDTH) -Color DarkGray
+    Write-Padded ("-" * $global:WK_MENU_WIDTH) -Color DarkGray
     Write-Padded ""  # Empty line
 }
