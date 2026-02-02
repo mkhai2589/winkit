@@ -7,7 +7,6 @@ function Register-Feature {
         [string]$Id,
         [string]$Title,
         [string]$Description,
-        [ValidateSet("Essential","Advanced","Tools")]
         [string]$Category,
         [int]$Order,
         [string]$FileName,
@@ -15,8 +14,8 @@ function Register-Feature {
         [bool]$RequireAdmin = $true
     )
 
-    if ($global:WK_FEATURES_BY_ID.ContainsKey($Id)) {
-        Write-Log "Feature duplicated: $Id" "WARN"
+    if ($WK_FEATURES_BY_ID.ContainsKey($Id)) {
+        Write-Log "Duplicate feature: $Id" "WARN"
         return
     }
 
@@ -26,40 +25,35 @@ function Register-Feature {
         Description = $Description
         Category = $Category
         Order = $Order
-        FileName = $FileName
         Execute = $Execute
         RequireAdmin = $RequireAdmin
-        RegisteredAt = Get-Date
+        FileName = $FileName
     }
 
-    $global:WK_FEATURES += $feature
-    $global:WK_FEATURES_BY_ID[$Id] = $feature
+    $WK_FEATURES += $feature
+    $WK_FEATURES_BY_ID[$Id] = $feature
 
-    if (-not $global:WK_CATEGORIES.ContainsKey($Category)) {
-        $global:WK_CATEGORIES[$Category] = @()
+    if (-not $WK_CATEGORIES.ContainsKey($Category)) {
+        $WK_CATEGORIES[$Category] = @()
     }
-
-    $global:WK_CATEGORIES[$Category] += $feature
-}
-
-function Get-AllFeatures {
-    $global:WK_FEATURES | Sort-Object Order
+    $WK_CATEGORIES[$Category] += $feature
 }
 
 function Get-FeaturesByCategory($Category) {
-    if ($global:WK_CATEGORIES.ContainsKey($Category)) {
-        return $global:WK_CATEGORIES[$Category] | Sort-Object Order
+    if ($WK_CATEGORIES.ContainsKey($Category)) {
+        return $WK_CATEGORIES[$Category] | Sort-Object Order
     }
     return @()
 }
 
 function Get-FeatureByOrder($Order) {
-    $global:WK_FEATURES | Where-Object { $_.Order -eq $Order } | Select-Object -First 1
+    $WK_FEATURES | Where-Object { $_.Order -eq $Order } | Select-Object -First 1
 }
 
 function Invoke-Feature($Feature) {
     if ($Feature.RequireAdmin -and -not (Test-AdminSilent)) {
-        throw "Administrator privileges required"
+        Write-ErrorBox "Administrator rights required"
+        return
     }
     & $Feature.Execute
 }
