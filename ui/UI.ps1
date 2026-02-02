@@ -40,51 +40,61 @@ function Show-SystemInfoBar {
         Write-Padded "-------------" -Color DarkGray
         Write-Padded ""  # Empty line
         
-        # Each info on its own line with left padding
-        Write-Padded "OS:      $($sysInfo.OS) Build $($sysInfo.Build) ($($sysInfo.Arch))" -Color Gray
-        Write-Padded "PS:      $($sysInfo.PSVersion)" -Color Gray
-        Write-Padded "Admin:   $($sysInfo.Admin)" -Color $(if ($sysInfo.Admin -eq "YES") { "Green" } else { "Red" })
-        Write-Padded "Mode:    $($sysInfo.Mode)" -Color $(if ($sysInfo.Mode -eq "Online") { "Green" } else { "Yellow" })
+        # Line 1: OS + PowerShell + Admin + Network
+        $osText = "$($sysInfo.OS) | "
+        $psText = "PowerShell $($sysInfo.PSVersion) | "
+        $adminText = if ($sysInfo.Admin -eq "YES") { "Admin | " } else { "User | " }
+        $modeText = if ($sysInfo.Mode -eq "Online") { "Online" } else { "Offline" }
+        
+        Write-Padded $($osText + $psText + $adminText + $modeText) -Color Gray
         Write-Padded ""  # Empty line
         
-        Write-Padded "User:    $($sysInfo.User)" -Color Gray
-        Write-Padded "PC:      $($sysInfo.Computer)" -Color Gray
-        Write-Padded "TPM:     $($sysInfo.TPM)" -Color $(if ($sysInfo.TPM -eq "YES") { "Green" } else { "Gray" })
+        # Line 2: User + TPM + Timezone
+        $userText = "User: $($sysInfo.User) | "
+        $tpmText = "TPM: $($sysInfo.TPM) | "
+        $tzText = "Timezone: $($sysInfo.TimeZone)"
+        
+        Write-Padded $($userText + $tpmText + $tzText) -Color Gray
         Write-Padded ""  # Empty line
         
-        Write-Padded "Timezone:$($sysInfo.TimeZone)" -Color Gray
-        Write-Padded ""  # Empty line
-        
-        # Disk information - compact, 2 per line if multiple
+        # Line 3: Disk info (all on one line if possible)
         if ($sysInfo.Disks.Count -gt 0) {
-            Write-Padded "Disks:" -Color Gray
-            $diskLines = @()
-            $currentLine = ""
+            $diskText = "Disk: "
+            $diskItems = @()
             
-            # Make a copy of the disks array to avoid collection modification
+            # Create a copy to avoid collection modification
             $disksCopy = @($sysInfo.Disks)
             
             foreach ($disk in $disksCopy) {
                 $color = if ($disk.Percentage -gt 90) { "Red" } elseif ($disk.Percentage -gt 75) { "Yellow" } else { "Green" }
-                $diskText = "  $($disk.Name): $($disk.FreeGB)GB free ($($disk.Percentage)% used)"
+                $diskItems += "$($disk.Name): $($disk.FreeGB)GB free ($($disk.Percentage)% used)"
+            }
+            
+            $diskLine = $diskText + ($diskItems -join " | ")
+            
+            # If line is too long, break it
+            if ($diskLine.Length -gt 70) {
+                Write-Padded $diskText -Color Gray -NoNewLine
+                $currentLine = ""
                 
-                if ($currentLine.Length + $diskText.Length -lt 60 -and $disksCopy.IndexOf($disk) -ne $disksCopy.Count - 1) {
-                    $currentLine += $diskText + " | "
-                }
-                else {
-                    if ($currentLine) {
-                        $diskLines += $currentLine.TrimEnd(' | ')
+                foreach ($item in $diskItems) {
+                    if ($currentLine.Length + $item.Length -gt 65) {
+                        Write-Host ""
+                        Write-Padded "      " -Color Gray -NoNewLine
+                        $currentLine = $item + " | "
+                    } else {
+                        $currentLine += $item + " | "
                     }
-                    $currentLine = $diskText + " | "
                 }
-            }
-            
-            if ($currentLine) {
-                $diskLines += $currentLine.TrimEnd(' | ')
-            }
-            
-            foreach ($line in $diskLines) {
-                Write-Padded $line -Color Gray
+                
+                # Remove last separator
+                if ($currentLine.EndsWith(" | ")) {
+                    $currentLine = $currentLine.Substring(0, $currentLine.Length - 3)
+                }
+                
+                Write-Host $currentLine -ForegroundColor Gray
+            } else {
+                Write-Padded $diskLine -Color Gray
             }
         }
         
@@ -104,20 +114,21 @@ function Write-Padded {
     param(
         [string]$Text,
         [string]$Color = "White",
-        [int]$IndentLevel = 1
+        [int]$IndentLevel = 1,
+        [switch]$NoNewLine
     )
     
     $indent = $global:WK_PADDING * $IndentLevel
     
     if ($Text -eq "") {
-        Write-Host ""
+        if (-not $NoNewLine) {
+            Write-Host ""
+        }
     } else {
-        Write-Host "$indent$Text" -ForegroundColor $Color
+        if ($NoNewLine) {
+            Write-Host "$indent$Text" -ForegroundColor $Color -NoNewline
+        } else {
+            Write-Host "$indent$Text" -ForegroundColor $Color
+        }
     }
-}
-
-function Show-MainMenuTitle {
-    Write-Padded ""
-    Write-Padded "------------------------------------------" -Color DarkGray
-    Write-Padded ""
 }
