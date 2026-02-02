@@ -14,10 +14,11 @@ $Global:WinKitLogoData = @{
 "@
 }
 
+
 function Get-Logo {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [string]$Style = 'default'
     )
     
@@ -46,10 +47,10 @@ function Get-Logo {
 function Show-Logo {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [string]$Style = 'default',
         
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [switch]$Centered
     )
     
