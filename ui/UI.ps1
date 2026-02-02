@@ -1,7 +1,10 @@
+# Global padding settings
+$global:WK_PADDING = "  "  # 2 spaces
+$global:WK_COLUMN_WIDTH = 35
+
 function Initialize-UI {
     Clear-Host
     Show-Header
-    Write-Host ""
     Show-SystemInfoBar
 }
 
@@ -14,19 +17,17 @@ function Show-Header {
             Show-Logo
         }
         catch {
-            # If logo loading fails, show simple header
-            Write-Host "------------------------------------------" -ForegroundColor Cyan
-            Write-Host "              W I N K I T                 " -ForegroundColor White
-            Write-Host "    Windows Optimization Toolkit          " -ForegroundColor Gray
-            Write-Host "------------------------------------------" -ForegroundColor Cyan
+            Write-Padded "------------------------------------------" -Color Cyan
+            Write-Padded "              W I N K I T                 " -Color White
+            Write-Padded "    Windows Optimization Toolkit          " -Color Gray
+            Write-Padded "------------------------------------------" -Color Cyan
         }
     }
     else {
-        # If logo file doesn't exist, show simple header
-        Write-Host "------------------------------------------" -ForegroundColor Cyan
-        Write-Host "              W I N K I T                 " -ForegroundColor White
-        Write-Host "    Windows Optimization Toolkit          " -ForegroundColor Gray
-        Write-Host "------------------------------------------" -ForegroundColor Cyan
+        Write-Padded "------------------------------------------" -Color Cyan
+        Write-Padded "              W I N K I T                 " -Color White
+        Write-Padded "    Windows Optimization Toolkit          " -Color Gray
+        Write-Padded "------------------------------------------" -Color Cyan
     }
 }
 
@@ -34,76 +35,78 @@ function Show-SystemInfoBar {
     try {
         $sysInfo = Get-WKSystemInfo
         
-        Write-Host ""
-        Write-Host "SYSTEM STATUS" -ForegroundColor White
-        Write-Host "-------------" -ForegroundColor DarkGray
+        Write-Padded ""  # Empty line
+        Write-Padded "SYSTEM STATUS" -Color White
+        Write-Padded "-------------" -Color DarkGray
+        Write-Padded ""  # Empty line
         
-        # Line 1: OS + PS + Admin + Network
-        Write-Host "OS: $($sysInfo.OS) Build $($sysInfo.Build) | " -NoNewline -ForegroundColor Gray
-        Write-Host "PS: $($sysInfo.PSVersion) | " -NoNewline -ForegroundColor Gray
-        Write-Host "Admin: $($sysInfo.Admin) | " -NoNewline -ForegroundColor $(if ($sysInfo.Admin -eq "YES") { "Green" } else { "Red" })
-        Write-Host "Mode: $($sysInfo.Mode)" -ForegroundColor $(if ($sysInfo.Mode -eq "Online") { "Green" } else { "Yellow" })
+        # Each info on its own line with left padding
+        Write-Padded "OS:      $($sysInfo.OS) Build $($sysInfo.Build) ($($sysInfo.Arch))" -Color Gray
+        Write-Padded "PS:      $($sysInfo.PSVersion)" -Color Gray
+        Write-Padded "Admin:   $($sysInfo.Admin)" -Color $(if ($sysInfo.Admin -eq "YES") { "Green" } else { "Red" })
+        Write-Padded "Mode:    $($sysInfo.Mode)" -Color $(if ($sysInfo.Mode -eq "Online") { "Green" } else { "Yellow" })
+        Write-Padded ""  # Empty line
         
-        Write-Host ""
+        Write-Padded "User:    $($sysInfo.User)" -Color Gray
+        Write-Padded "PC:      $($sysInfo.Computer)" -Color Gray
+        Write-Padded "TPM:     $($sysInfo.TPM)" -Color $(if ($sysInfo.TPM -eq "YES") { "Green" } else { "Gray" })
+        Write-Padded ""  # Empty line
         
-        # Line 2: User + Computer + TPM
-        Write-Host "USER: $($sysInfo.User) | " -NoNewline -ForegroundColor Gray
-        Write-Host "COMPUTER: $($sysInfo.Computer) | " -NoNewline -ForegroundColor Gray
-        Write-Host "TPM: $($sysInfo.TPM)" -ForegroundColor $(if ($sysInfo.TPM -eq "YES") { "Green" } else { "Gray" })
+        Write-Padded "Timezone:$($sysInfo.TimeZone)" -Color Gray
+        Write-Padded ""  # Empty line
         
-        # Line 3: Time Zone
-        Write-Host "TIME ZONE: $($sysInfo.TimeZone)" -ForegroundColor Gray
-        
-        Write-Host ""
-        
-        # Line 4+: Disks - compact display (max 2 per line)
+        # Disk information - compact, 2 per line if multiple
         if ($sysInfo.Disks.Count -gt 0) {
-            Write-Host "DISKS: " -NoNewline -ForegroundColor Gray
-            $diskCount = 0
-            $lineBreaks = 0
+            Write-Padded "Disks:" -Color Gray
+            $diskLines = @()
+            $currentLine = ""
             
-            # Create a copy of disks array to avoid collection modification errors
-            $disksCopy = @($sysInfo.Disks)
-            
-            foreach ($disk in $disksCopy) {
-                if ($diskCount -gt 0) {
-                    if ($diskCount % 2 -eq 0) {
-                        Write-Host ""
-                        Write-Host "       " -NoNewline
-                        $lineBreaks++
-                    } else {
-                        Write-Host " | " -NoNewline -ForegroundColor DarkGray
-                    }
-                }
-                
+            foreach ($disk in $sysInfo.Disks) {
                 $color = if ($disk.Percentage -gt 90) { "Red" } elseif ($disk.Percentage -gt 75) { "Yellow" } else { "Green" }
-                Write-Host "$($disk.Name): $($disk.FreeGB)GB free" -NoNewline -ForegroundColor $color
-                $diskCount++
+                $diskText = "  $($disk.Name): $($disk.FreeGB)GB free ($($disk.Percentage)% used)"
+                
+                if ($currentLine.Length + $diskText.Length -lt 60 -and $sysInfo.Disks.IndexOf($disk) -ne $sysInfo.Disks.Count - 1) {
+                    $currentLine += $diskText + " | "
+                }
+                else {
+                    if ($currentLine) {
+                        $diskLines += $currentLine.TrimEnd(' | ')
+                    }
+                    $currentLine = $diskText + " | "
+                }
             }
-            Write-Host ""
+            
+            if ($currentLine) {
+                $diskLines += $currentLine.TrimEnd(' | ')
+            }
+            
+            foreach ($line in $diskLines) {
+                Write-Padded $line -Color Gray
+            }
         }
         
-        Write-Host ""
-        Write-Host "------------------------------------------" -ForegroundColor DarkGray
-        Write-Host ""
+        Write-Padded ""  # Empty line
+        Write-Padded "------------------------------------------" -Color DarkGray
+        Write-Padded ""  # Empty line
         
     }
     catch {
-        Write-Host "System information unavailable" -ForegroundColor Red
-        Write-Host ""
+        Write-Padded "System information unavailable" -Color Red
+        Write-Padded ""  # Empty line
     }
 }
 
-function Show-MainMenuTitle {
-    # This function is called from Menu.ps1
-    Write-Host ""
-    Write-Host "------------------------------------------" -ForegroundColor DarkGray
-    Write-Host ""
+# Helper function for consistent padding
+function Write-Padded {
+    param(
+        [string]$Text,
+        [string]$Color = "White",
+        [int]$IndentLevel = 1
+    )
+    
+    $indent = $global:WK_PADDING * $IndentLevel
+    Write-Host "$indent$Text" -ForegroundColor $Color
 }
 
-function Show-Footer([string]$Status = "Ready") {
-    Write-Host ""
-    Write-Host "------------------------------------------" -ForegroundColor DarkGray
-    Write-Host "[INFO] $Status | Log: $global:WK_LOG" -ForegroundColor Cyan
-    Write-Host ""
-}
+# Export functions
+Export-ModuleMember -Function Initialize-UI, Show-SystemInfoBar, Write-Padded
