@@ -66,7 +66,7 @@ function Start-WinKit {
         $uiModules = @(
             "ui\Theme.ps1",
             "ui\UI.ps1",
-            "ui\Logo.ps1"
+            "ui\logo.ps1"
         )
         
         foreach ($module in $uiModules) {
