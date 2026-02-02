@@ -1,24 +1,109 @@
-function Show-Logo {
-    $width = 76
-    $padding = $global:WK_PADDING
+# ui/Logo.ps1
+# WinKit ASCII Logo Renderer - No Business Logic
+
+$Global:WinKitLogoData = @{
+    ascii = @"
+---------------------------------------------------------------------------------------------------
+          __        ___ _   _ _  __     _______ ___ _______ 
+          \ \      / (_) | (_) |/ /    |_  /_ _|_ _|_   _| |
+           \ \ /\ / /| | | | | ' / _____ / / | | | |  | | | |
+            \ V  V / | | | | | . \|_____/ /  | | | |  | | |_|
+             \_/\_/  |_|_|_|_|_|\_\    /___|___|___| |_| (_)
+---------------------------------------------------------------------------------------------------
+Windows Optimization Toolkit
+"@
     
-    $title = "W I N K I T"
-    $subtitle = "Windows Optimization Toolkit"
-    $author = "Author: Minh Khai | 0333 090 930"
+    boxed = @"
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                                  │
+│          __        ___ _   _ _  __     _______ ___ _______                                       │
+│          \ \      / (_) | (_) |/ /    |_  /_ _|_ _|_   _| |                                      │
+│           \ \ /\ / /| | | | | ' / _____ / / | | | |  | | | |                                     │
+│            \ V  V / | | | | | . \|_____/ /  | | | |  | | |_|                                     │
+│             \_/\_/  |_|_|_|_|_|\_\    /___|___|___| |_| (_)                                     │
+│                                                                                                  │
+│                           Windows Optimization Toolkit                                            │
+│                                                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
+"@
     
-    $borderTop = "=" * $width
-    $borderBottom = "=" * $width
+    simple = @"
+W I N K I T
+===========
+Windows Optimization Toolkit
+"@
     
-    $titleLine = "  " + $title.PadLeft(($width + $title.Length) / 2).PadRight($width)
-    $subtitleLine = "  " + $subtitle.PadLeft(($width + $subtitle.Length) / 2).PadRight($width)
-    $emptyLine = "  " + (" " * ($width - 4))
-    $authorLine = "  " + $author.PadLeft(($width + $author.Length) / 2).PadRight($width)
-    
-    Write-Host "$padding$borderTop" -ForegroundColor Cyan
-    Write-Host "$padding$titleLine" -ForegroundColor White
-    Write-Host "$padding$subtitleLine" -ForegroundColor Gray
-    Write-Host "$padding$emptyLine" -ForegroundColor Cyan
-    Write-Host "$padding$authorLine" -ForegroundColor Gray
-    Write-Host "$padding$borderBottom" -ForegroundColor Cyan
-    Write-Host ""
+    minimal = @"
+WinKit
+------
+Windows Optimization Toolkit
+"@
 }
+
+function Get-Logo {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$false)]
+        [ValidateSet('ascii', 'boxed', 'simple', 'minimal')]
+        [string]$Style = 'ascii'
+    )
+    
+    Write-Log -Level INFO -Message "Getting logo with style: $Style" -Silent $true
+    
+    if ($Global:WinKitLogoData.ContainsKey($Style)) {
+        return $Global:WinKitLogoData[$Style]
+    }
+    
+    # Fallback to ascii if style not found
+    Write-Log -Level WARN -Message "Logo style '$Style' not found, using 'ascii'" -Silent $true
+    return $Global:WinKitLogoData['ascii']
+}
+
+function Show-Logo {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$false)]
+        [string]$Style = $Global:WinKitConfig.UI.LogoStyle,
+        
+        [Parameter(Mandatory=$false)]
+        [switch]$Centered
+    )
+    
+    $logo = Get-Logo -Style $Style
+    
+    # Split logo into lines
+    $logoLines = $logo -split "`n"
+    
+    # Get console width for centering
+    $consoleWidth = $host.UI.RawUI.WindowSize.Width
+    
+    foreach ($line in $logoLines) {
+        if ($Centered -and $consoleWidth -gt 0) {
+            # Center each line
+            $padding = [math]::Max(0, [math]::Floor(($consoleWidth - $line.Length) / 2))
+            $line = (" " * $padding) + $line
+        }
+        
+        Write-Colored $line -Style Header
+    }
+}
+
+function Get-LogoHeight {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$false)]
+        [string]$Style = $Global:WinKitConfig.UI.LogoStyle
+    )
+    
+    $logo = Get-Logo -Style $Style
+    return ($logo -split "`n").Count
+}
+
+# Export functions
+$ExportFunctions = @(
+    'Get-Logo',
+    'Show-Logo',
+    'Get-LogoHeight'
+)
+
+Export-ModuleMember -Function $ExportFunctions
