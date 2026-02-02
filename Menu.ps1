@@ -52,10 +52,9 @@ function Show-MainMenu {
                 $categoryOrder = @("Essential", "Advanced", "Tools")
             }
             
-            $categoryKeys = @($categories.Keys)
-            
             Write-Padded ""  # Empty line before menu
             
+            $categoryKeys = @($categories.Keys)
             foreach ($category in $categoryOrder) {
                 if ($categoryKeys -contains $category -and $categories[$category].Count -gt 0) {
                     $categoryColor = if ($config.ui -and $config.ui.categoryColors -and $config.ui.categoryColors.$category) { 
@@ -219,4 +218,11 @@ function Show-Footer([string]$Status = "Ready") {
     Write-Padded "------------------------------------------" -Color DarkGray
     Write-Padded "[INFO] $Status | Log: $global:WK_LOG" -Color Cyan
     Write-Padded ""  # Empty line
+}
+
+function Pause {
+    param([string]$Message = "Press any key to continue...")
+    Write-Host ""
+    Write-Padded $Message -NoNewline -Color DarkGray
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }
