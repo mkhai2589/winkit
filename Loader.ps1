@@ -5,7 +5,17 @@ function Start-WinKit {
         $global:WK_FEATURES = Join-Path $WK_ROOT "features"
         $global:WK_LOG = Join-Path $env:TEMP "winkit.log"
         $global:WK_PADDING = "  "  # 2 spaces for left padding
-        $global:WK_COLUMN_WIDTH = 35  # Width for menu columns
+        
+        # SET CONSOLE WINDOW SIZE (120x40)
+        try {
+            $Host.UI.RawUI.WindowTitle = "WinKit - Windows Optimization Toolkit"
+            $size = New-Object System.Management.Automation.Host.Size(120, 40)
+            $Host.UI.RawUI.WindowSize = $size
+            $Host.UI.RawUI.BufferSize = $size
+        }
+        catch {
+            # Silently continue if resize fails
+        }
         
         # CLEAR OLD LOG ON NEW START
         if (Test-Path $global:WK_LOG) {
@@ -18,6 +28,7 @@ function Start-WinKit {
         if (Test-Path $loggerPath) {
             . $loggerPath
             Write-Log -Message "WinKit starting from: $WK_ROOT" -Level "INFO"
+            Write-Log -Message "Console size set to 120x40" -Level "DEBUG"
         } else {
             Write-Host "  WARNING: Logger.ps1 not found" -ForegroundColor Yellow
         }
