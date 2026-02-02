@@ -199,6 +199,13 @@ function Start-LocalWinKit {
     )
     
     try {
+        # Đổi ExecutionPolicy cho process hiện tại
+        $originalPolicy = Get-ExecutionPolicy -Scope Process
+        if ($originalPolicy -eq 'Restricted') {
+            # Thử set policy cho process
+            Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force -ErrorAction SilentlyContinue
+        }
+        
         # Chuyển đến thư mục tạm
         Set-Location $TempDir
         
@@ -207,6 +214,10 @@ function Start-LocalWinKit {
         Start-WinKit
     }
     catch {
+        # Khôi phục policy nếu có thể
+        if ($originalPolicy) {
+            Set-ExecutionPolicy -ExecutionPolicy $originalPolicy -Scope Process -Force -ErrorAction SilentlyContinue
+        }
         throw "Failed to start WinKit: $_"
     }
 }
