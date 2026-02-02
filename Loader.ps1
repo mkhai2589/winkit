@@ -15,7 +15,7 @@ function Start-WinKit {
 
     $global:WK_CONFIG = Read-Json "$WK_ROOT\config.json"
 
-    Get-ChildItem "$WK_ROOT\features" -Filter "*.ps1" | ForEach-Object {
+    Get-ChildItem "$WK_ROOT\features" -Filter "*.ps1" | Sort-Object Name | ForEach-Object {
         . $_.FullName
     }
 
