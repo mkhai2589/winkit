@@ -1,8 +1,8 @@
 {
   "ui": {
-    "categoryOrder": ["Essential", "Advanced", "Tools"],
-    "menuWidth": 76,
-    "columnWidth": 38
+    "menuWidth": 78,
+    "columnWidth": 38,
+    "categoryOrder": ["Essential", "Advanced", "Tools"]
   },
   "layout": {
     "twoColumnCategories": ["Essential", "Advanced"],
