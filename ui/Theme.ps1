@@ -6,10 +6,25 @@ $Global:WinKitTheme = $null
 function Initialize-Theme {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$false)]
-        [ValidateSet('default', 'classic', 'highcontrast')]
-        [string]$ColorScheme = 'default'
+        [string]$ColorScheme = "default"
     )
+    
+    $themes = @{
+        default = @{
+            Header = "Cyan"
+            Section = "Green"
+            MenuItem = "White"
+            Status = "Yellow"
+            Error = "Red"
+            Prompt = "Yellow"
+        }
+    }
+    
+    $Global:WinKitTheme = $themes.default
+    
+    return $Global:WinKitTheme
+}
+
     
     Write-Log -Level INFO -Message "Initializing theme: $ColorScheme" -Silent $true
     
@@ -70,64 +85,17 @@ function Get-Theme {
 function Write-Colored {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true, ValueFromPipeline=$true)]
         [string]$Text,
-        
-        [Parameter(Mandatory=$false)]
-        [ValidateSet('Header', 'Section', 'MenuItem', 'Status', 'Error', 'Prompt', 'Separator')]
-        [string]$Style = 'MenuItem',
-        
-        [Parameter(Mandatory=$false)]
-        [switch]$NoNewLine,
-        
-        [Parameter(Mandatory=$false)]
-        [switch]$Center
+        [string]$Style = "MenuItem"
     )
     
-    begin {
-        $theme = Get-Theme
-        
-        if (-not $theme.ContainsKey($Style)) {
-            $Style = 'MenuItem'
-        }
-        
-        $color = $theme[$Style]
-        $originalColor = $host.UI.RawUI.ForegroundColor
+    $color = if ($Global:WinKitTheme -and $Global:WinKitTheme.ContainsKey($Style)) {
+        $Global:WinKitTheme[$Style]
+    } else {
+        "White"
     }
     
-    process {
-        # Center text if requested
-        if ($Center) {
-            $consoleWidth = $host.UI.RawUI.WindowSize.Width
-            if ($consoleWidth -gt 0) {
-                $padding = [math]::Max(0, [math]::Floor(($consoleWidth - $Text.Length) / 2))
-                $Text = (" " * $padding) + $Text
-            }
-        }
-        
-        # Set color and write
-        try {
-            $host.UI.RawUI.ForegroundColor = $color
-        }
-        catch {
-            $host.UI.RawUI.ForegroundColor = "White"
-        }
-        
-        if ($NoNewLine) {
-            Write-Host $Text -NoNewline
-        }
-        else {
-            Write-Host $Text
-        }
-        
-        # Restore original color
-        $host.UI.RawUI.ForegroundColor = $originalColor
-    }
-    
-    end {
-        # Ensure color is restored
-        $host.UI.RawUI.ForegroundColor = $originalColor
-    }
+    Write-Host $Text -ForegroundColor $color
 }
 
 function Get-Color {
@@ -168,5 +136,6 @@ function Test-Theme {
     Write-Host ""
     Write-Colored "Theme test completed." -Style Status
 }
+
 
 
