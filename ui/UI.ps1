@@ -1,12 +1,11 @@
 function Initialize-UI {
     Clear-Host
     Show-Header
-    Write-Host ""  # Thêm dòng trống
+    Write-Host ""
     Show-SystemInfoBar
 }
 
 function Show-Header {
-    # Cố gắng load logo từ file trước
     $logoPath = Join-Path $PSScriptRoot "logo.ps1"
     
     if (Test-Path $logoPath) {
@@ -15,12 +14,19 @@ function Show-Header {
             Show-Logo
         }
         catch {
-            Show-FallbackLogo
+            # If logo loading fails, show simple header
+            Write-Host "------------------------------------------" -ForegroundColor Cyan
+            Write-Host "              W I N K I T                 " -ForegroundColor White
+            Write-Host "    Windows Optimization Toolkit          " -ForegroundColor Gray
+            Write-Host "------------------------------------------" -ForegroundColor Cyan
         }
     }
     else {
-        # Fallback nếu không tìm thấy file
-        Show-FallbackLogo
+        # If logo file doesn't exist, show simple header
+        Write-Host "------------------------------------------" -ForegroundColor Cyan
+        Write-Host "              W I N K I T                 " -ForegroundColor White
+        Write-Host "    Windows Optimization Toolkit          " -ForegroundColor Gray
+        Write-Host "------------------------------------------" -ForegroundColor Cyan
     }
 }
 
@@ -38,7 +44,7 @@ function Show-SystemInfoBar {
         Write-Host "Admin: $($sysInfo.Admin) | " -NoNewline -ForegroundColor $(if ($sysInfo.Admin -eq "YES") { "Green" } else { "Red" })
         Write-Host "Mode: $($sysInfo.Mode)" -ForegroundColor $(if ($sysInfo.Mode -eq "Online") { "Green" } else { "Yellow" })
         
-        Write-Host ""  # Thêm dòng trống
+        Write-Host ""
         
         # Line 2: User + Computer + TPM
         Write-Host "USER: $($sysInfo.User) | " -NoNewline -ForegroundColor Gray
@@ -48,14 +54,18 @@ function Show-SystemInfoBar {
         # Line 3: Time Zone
         Write-Host "TIME ZONE: $($sysInfo.TimeZone)" -ForegroundColor Gray
         
-        Write-Host ""  # Thêm dòng trống
+        Write-Host ""
         
         # Line 4+: Disks - compact display (max 2 per line)
         if ($sysInfo.Disks.Count -gt 0) {
             Write-Host "DISKS: " -NoNewline -ForegroundColor Gray
             $diskCount = 0
             $lineBreaks = 0
-            foreach ($disk in $sysInfo.Disks) {
+            
+            # Create a copy of disks array to avoid collection modification errors
+            $disksCopy = @($sysInfo.Disks)
+            
+            foreach ($disk in $disksCopy) {
                 if ($diskCount -gt 0) {
                     if ($diskCount % 2 -eq 0) {
                         Write-Host ""
@@ -75,11 +85,25 @@ function Show-SystemInfoBar {
         
         Write-Host ""
         Write-Host "------------------------------------------" -ForegroundColor DarkGray
-        Write-Host ""  # Thêm dòng trống
+        Write-Host ""
         
     }
     catch {
         Write-Host "System information unavailable" -ForegroundColor Red
         Write-Host ""
     }
+}
+
+function Show-MainMenuTitle {
+    # This function is called from Menu.ps1
+    Write-Host ""
+    Write-Host "------------------------------------------" -ForegroundColor DarkGray
+    Write-Host ""
+}
+
+function Show-Footer([string]$Status = "Ready") {
+    Write-Host ""
+    Write-Host "------------------------------------------" -ForegroundColor DarkGray
+    Write-Host "[INFO] $Status | Log: $global:WK_LOG" -ForegroundColor Cyan
+    Write-Host ""
 }
