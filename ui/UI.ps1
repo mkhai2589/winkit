@@ -1,6 +1,7 @@
 # Global padding settings
 $global:WK_PADDING = "  "  # 2 spaces
 $global:WK_COLUMN_WIDTH = 35
+$global:WK_MENU_WIDTH = 74
 
 function Initialize-UI {
     Clear-Host
@@ -17,17 +18,24 @@ function Show-Header {
             Show-Logo
         }
         catch {
-            Write-Padded "------------------------------------------" -Color Cyan
-            Write-Padded "              W I N K I T                 " -Color White
-            Write-Padded "    Windows Optimization Toolkit          " -Color Gray
-            Write-Padded "------------------------------------------" -Color Cyan
+            # Fallback simple header
+            Write-Padded "╔════════════════════════════════════════════════════════════════╗" -Color Cyan
+            Write-Padded "║  W I N K I T                                                   ║" -Color White
+            Write-Padded "║  Windows Optimization Toolkit                                  ║" -Color Gray
+            Write-Padded "║                                                                ║" -Color Cyan
+            Write-Padded "║  Author: Minh Khai | 0333 090 930                              ║" -Color Gray
+            Write-Padded "╚════════════════════════════════════════════════════════════════╝" -Color Cyan
+            Write-Host ""
         }
     }
     else {
-        Write-Padded "------------------------------------------" -Color Cyan
-        Write-Padded "              W I N K I T                 " -Color White
-        Write-Padded "    Windows Optimization Toolkit          " -Color Gray
-        Write-Padded "------------------------------------------" -Color Cyan
+        Write-Padded "╔════════════════════════════════════════════════════════════════╗" -Color Cyan
+        Write-Padded "║  W I N K I T                                                   ║" -Color White
+        Write-Padded "║  Windows Optimization Toolkit                                  ║" -Color Gray
+        Write-Padded "║                                                                ║" -Color Cyan
+        Write-Padded "║  Author: Minh Khai | 0333 090 930                              ║" -Color Gray
+        Write-Padded "╚════════════════════════════════════════════════════════════════╝" -Color Cyan
+        Write-Host ""
     }
 }
 
@@ -37,27 +45,24 @@ function Show-SystemInfoBar {
         
         Write-Padded ""  # Empty line
         Write-Padded "SYSTEM STATUS" -Color White
-        Write-Padded "-------------" -Color DarkGray
+        Write-Padded "─" * $global:WK_MENU_WIDTH -Color DarkGray
         Write-Padded ""  # Empty line
         
-        # Line 1: OS + PowerShell + Admin + Network
-        $osText = "$($sysInfo.OS) | "
-        $psText = "PowerShell $($sysInfo.PSVersion) | "
-        $adminText = if ($sysInfo.Admin -eq "YES") { "Admin | " } else { "User | " }
-        $modeText = if ($sysInfo.Mode -eq "Online") { "Online" } else { "Offline" }
+        # Line 1: OS + Shell + Privilege + Mode (all with labels)
+        $line1 = "OS: $($sysInfo.OS) | Shell: PowerShell $($sysInfo.PSVersion) | "
+        $line1 += "Privilege: $($sysInfo.Admin) | Mode: $($sysInfo.Mode)"
         
-        Write-Padded $($osText + $psText + $adminText + $modeText) -Color Gray
+        Write-Padded $line1 -Color Gray
         Write-Padded ""  # Empty line
         
-        # Line 2: User + TPM + Timezone
-        $userText = "User: $($sysInfo.User) | "
-        $tpmText = "TPM: $($sysInfo.TPM) | "
-        $tzText = "Timezone: $($sysInfo.TimeZone)"
+        # Line 2: User + Computer + TPM + Timezone
+        $line2 = "User: $($sysInfo.User) | Computer: $($sysInfo.Computer) | "
+        $line2 += "TPM: $($sysInfo.TPM) | Timezone: $($sysInfo.TimeZone)"
         
-        Write-Padded $($userText + $tpmText + $tzText) -Color Gray
+        Write-Padded $line2 -Color Gray
         Write-Padded ""  # Empty line
         
-        # Line 3: Disk info (all on one line if possible)
+        # Line 3: Disk information with label
         if ($sysInfo.Disks.Count -gt 0) {
             $diskText = "Disk: "
             $diskItems = @()
@@ -66,19 +71,18 @@ function Show-SystemInfoBar {
             $disksCopy = @($sysInfo.Disks)
             
             foreach ($disk in $disksCopy) {
-                $color = if ($disk.Percentage -gt 90) { "Red" } elseif ($disk.Percentage -gt 75) { "Yellow" } else { "Green" }
                 $diskItems += "$($disk.Name): $($disk.FreeGB)GB free ($($disk.Percentage)% used)"
             }
             
             $diskLine = $diskText + ($diskItems -join " | ")
             
-            # If line is too long, break it
-            if ($diskLine.Length -gt 70) {
+            # If line is too long, break it intelligently
+            if ($diskLine.Length -gt $global:WK_MENU_WIDTH) {
                 Write-Padded $diskText -Color Gray -NoNewLine
                 $currentLine = ""
                 
                 foreach ($item in $diskItems) {
-                    if ($currentLine.Length + $item.Length -gt 65) {
+                    if ($currentLine.Length + $item.Length -gt ($global:WK_MENU_WIDTH - 6)) {
                         Write-Host ""
                         Write-Padded "      " -Color Gray -NoNewLine
                         $currentLine = $item + " | "
@@ -99,7 +103,7 @@ function Show-SystemInfoBar {
         }
         
         Write-Padded ""  # Empty line
-        Write-Padded "------------------------------------------" -Color DarkGray
+        Write-Padded "─" * $global:WK_MENU_WIDTH -Color DarkGray
         Write-Padded ""  # Empty line
         
     }
@@ -131,4 +135,19 @@ function Write-Padded {
             Write-Host "$indent$Text" -ForegroundColor $Color
         }
     }
+}
+
+function Write-Section {
+    param(
+        [string]$Text,
+        [string]$Color = "Green"
+    )
+    
+    Write-Padded "[ $Text ]" -Color $Color
+    Write-Padded ""  # Empty line
+}
+
+function Write-Separator {
+    Write-Padded "─" * $global:WK_MENU_WIDTH -Color DarkGray
+    Write-Padded ""  # Empty line
 }
