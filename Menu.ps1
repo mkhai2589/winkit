@@ -3,15 +3,24 @@ function Show-MainMenu {
         try {
             Clear-Host
             Show-Header
-            Write-Host ""  # Thêm dòng trống
+            Write-Host ""
             Show-SystemInfoBar
             
             # LOAD CONFIGURATION
-            $config = Read-Json -Path (Join-Path $global:WK_ROOT "config.json")
+            $configPath = Join-Path $global:WK_ROOT "config.json"
+            if (-not (Test-Path $configPath)) {
+                throw "Configuration file not found at: $configPath"
+            }
+            
+            $config = Read-Json -Path $configPath
             
             # GET AVAILABLE FEATURES
             $availableFeatures = @()
-            foreach ($feature in $config.features) {
+            
+            # Create a copy of features array to avoid modification during iteration
+            $featuresCopy = @($config.features)
+            
+            foreach ($feature in $featuresCopy) {
                 $featurePath = Join-Path $global:WK_FEATURES $feature.file
                 if (Test-Path $featurePath) {
                     $availableFeatures += $feature
@@ -20,7 +29,9 @@ function Show-MainMenu {
             
             # GROUP FEATURES BY CATEGORY
             $categories = @{}
-            foreach ($feature in $availableFeatures) {
+            $availableFeaturesCopy = @($availableFeatures)
+            
+            foreach ($feature in $availableFeaturesCopy) {
                 if (-not $categories.ContainsKey($feature.category)) {
                     $categories[$feature.category] = @()
                 }
@@ -28,25 +39,40 @@ function Show-MainMenu {
             }
             
             # SORT FEATURES IN EACH CATEGORY
-            foreach ($category in $categories.Keys) {
-                $categories[$category] = $categories[$category] | Sort-Object order
+            $categoryKeys = @($categories.Keys)
+            foreach ($category in $categoryKeys) {
+                $sortedFeatures = $categories[$category] | Sort-Object order
+                $categories[$category] = @($sortedFeatures)
             }
             
             # DISPLAY CATEGORIES IN SPECIFIED ORDER
-            $categoryOrder = $config.ui.categoryOrder
+            if ($config.ui -and $config.ui.categoryOrder) {
+                $categoryOrder = $config.ui.categoryOrder
+            } else {
+                # Default order if not specified
+                $categoryOrder = @("Essential", "Advanced", "Tools")
+            }
+            
+            $categoryKeys = @($categories.Keys)
             foreach ($category in $categoryOrder) {
-                if ($categories.ContainsKey($category) -and $categories[$category].Count -gt 0) {
-                    $categoryColor = if ($config.ui.categoryColors.$category) { 
+                if ($categoryKeys -contains $category -and $categories[$category].Count -gt 0) {
+                    $categoryColor = if ($config.ui -and $config.ui.categoryColors -and $config.ui.categoryColors.$category) { 
                         $config.ui.categoryColors.$category 
                     } else { 
-                        $WK_THEME[$category] 
+                        if ($WK_THEME -and $WK_THEME[$category]) {
+                            $WK_THEME[$category]
+                        } else {
+                            "White"
+                        }
                     }
                     
                     Write-Host ""
                     Write-Host "[ $category ]" -ForegroundColor $categoryColor
                     Write-Host ""
                     
-                    foreach ($feature in $categories[$category]) {
+                    # Create copy of features in this category
+                    $categoryFeatures = @($categories[$category])
+                    foreach ($feature in $categoryFeatures) {
                         $dangerIcon = switch ($feature.dangerLevel) {
                             "High" { " (!)" }
                             "Medium" { " (?)" }
@@ -68,8 +94,13 @@ function Show-MainMenu {
             Show-Footer -Status "Ready"
             
             # USER INPUT
-            $maxOption = ($availableFeatures | Measure-Object -Property order -Maximum).Maximum
-            Write-Host "Select an option [0-$maxOption]: " -NoNewline -ForegroundColor Yellow
+            if ($availableFeatures.Count -gt 0) {
+                $maxOption = ($availableFeatures | Measure-Object -Property order -Maximum).Maximum
+                Write-Host "Select an option [0-$maxOption]: " -NoNewline -ForegroundColor Yellow
+            } else {
+                Write-Host "No features available. Select [0] to exit: " -NoNewline -ForegroundColor Yellow
+            }
+            
             $choice = Read-Host
             
             if ($choice -eq "0") {
@@ -96,7 +127,8 @@ function Show-MainMenu {
         }
         catch {
             Write-Host "`nMenu Error: $_" -ForegroundColor Red
-            Pause
+            Write-Host "Returning to menu in 3 seconds..." -ForegroundColor Yellow
+            Start-Sleep -Seconds 3
         }
     }
 }
@@ -125,11 +157,18 @@ function Execute-Feature([PSCustomObject]$Feature) {
         $functionName = "Start-$($Feature.id)"
         
         if (Get-Command $functionName -ErrorAction SilentlyContinue) {
+            # Update footer to show running status
+            Show-Footer -Status "Running: $($Feature.title)"
+            Write-Host ""
+            
+            # Execute feature
             & $functionName
+            
+            # Log execution
             Write-Log -Message "Feature executed: $($Feature.id)" -Level "INFO"
         }
         else {
-            throw "Function $functionName not found"
+            throw "Feature function '$functionName' not found in $($Feature.file)"
         }
     }
     catch {
@@ -140,11 +179,4 @@ function Execute-Feature([PSCustomObject]$Feature) {
         Write-Host ""
         Pause -Message "Press any key to return to main menu..."
     }
-}
-
-function Show-Footer([string]$Status = "Ready") {
-    Write-Host ""
-    Write-Host "------------------------------------------" -ForegroundColor DarkGray
-    Write-Host "[INFO] $Status | Log: $global:WK_LOG" -ForegroundColor Cyan
-    Write-Host ""
 }
