@@ -1,15 +1,23 @@
 function Start-CleanSystem {
-    Write-Host "=== Clean System ===" -ForegroundColor Cyan
     Write-Host ""
-    Write-Host "This feature will clean temporary files and system caches." -ForegroundColor Gray
-    Write-Host ""
+    Write-Padded "=== Clean System ===" -Color Cyan -IndentLevel 0
+    Write-Padded ""  # Empty line
+    Write-Padded "This feature will clean temporary files and system caches." -Color Gray
+    Write-Padded ""  # Empty line
+    
+    Write-Padded "Operations to be performed:" -Color Yellow
+    Write-Padded "  - Temporary files" -Color Gray
+    Write-Padded "  - Windows Update cache" -Color Gray
+    Write-Padded "  - Prefetch files" -Color Gray
+    Write-Padded "  - System logs (optional)" -Color Gray
+    Write-Padded ""  # Empty line
     
     if (-not (Ask-WKConfirm "Do you want to proceed?")) {
-        Write-Host "Operation cancelled." -ForegroundColor Yellow
+        Write-Padded "Operation cancelled." -Color Yellow
         return
     }
     
-    Write-Host ""
+    Write-Padded ""  # Empty line
     Write-WKInfo "Cleaning temporary files..."
     try {
         Remove-Item "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
@@ -20,7 +28,7 @@ function Start-CleanSystem {
         Write-WKWarn "Some temp files could not be removed"
     }
     
-    Write-Host ""
+    Write-Padded ""  # Empty line
     Write-WKInfo "Cleaning Windows Update cache..."
     try {
         Stop-Service wuauserv -Force -ErrorAction SilentlyContinue
@@ -32,7 +40,7 @@ function Start-CleanSystem {
         Write-WKWarn "Windows Update cache cleaning failed"
     }
     
-    Write-Host ""
+    Write-Padded ""  # Empty line
     Write-WKInfo "Cleaning prefetch files..."
     try {
         Remove-Item "C:\Windows\Prefetch\*" -Force -ErrorAction SilentlyContinue
@@ -42,9 +50,23 @@ function Start-CleanSystem {
         Write-WKWarn "Prefetch cleaning failed"
     }
     
-    Write-Host ""
+    Write-Padded ""  # Empty line
+    if (Ask-WKConfirm "Clean system logs? (This may require administrative privileges)" -Dangerous) {
+        try {
+            wevtutil clear-log Application /quiet
+            wevtutil clear-log System /quiet
+            Write-WKSuccess "System logs cleared"
+        }
+        catch {
+            Write-WKWarn "Log clearing requires administrator privileges"
+        }
+    }
+    
+    Write-Padded ""  # Empty line
+    Write-Padded "=== Summary ===" -Color Green -IndentLevel 0
+    Write-Padded ""  # Empty line
     Write-WKSuccess "System cleanup completed successfully!"
-    Write-Host "Note: Some changes may require restart to take full effect." -ForegroundColor Gray
+    Write-WKInfo "Note: Some changes may require restart to take full effect."
     
     Write-Log -Message "CleanSystem feature executed" -Level "INFO"
 }
