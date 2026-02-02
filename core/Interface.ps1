@@ -247,15 +247,3 @@ function Write-Color {
     }
 }
 
-# Export module functions
-$ExportFunctions = @(
-    'Initialize-WinKit',
-    'Load-Configuration',
-    'Merge-Hashtables',
-    'Initialize-Window',
-    'Initialize-Theme',
-    'Get-ThemeColor',
-    'Write-Color'
-)
-
-Export-ModuleMember -Function $ExportFunctions
