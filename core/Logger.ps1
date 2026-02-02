@@ -10,44 +10,40 @@ $Global:WinKitLoggerConfig = @{
 
 function Initialize-Log {
     [CmdletBinding()]
-    param(
-        [string]$LogPath = "$env:TEMP\winkit"
-    )
+    param()
     
     try {
-        # Xóa tất cả log cũ trong thư mục này
-        if (Test-Path $LogPath) {
-            Get-ChildItem -Path $LogPath -Filter "*.log" -File | Remove-Item -Force -ErrorAction SilentlyContinue
+        $logDir = "$env:TEMP\winkit"
+        
+        # Xóa log cũ
+        if (Test-Path $logDir) {
+            Get-ChildItem -Path $logDir -Filter "*.log" -File | Remove-Item -Force -ErrorAction SilentlyContinue
         }
         else {
-            New-Item -ItemType Directory -Path $LogPath -Force | Out-Null
+            New-Item -ItemType Directory -Path $logDir -Force | Out-Null
         }
         
-        # Tạo tên file log mới
+        # Tạo file log mới với timestamp
         $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-        $logFile = Join-Path $LogPath "winkit-$timestamp.log"
+        $logFile = Join-Path $logDir "winkit-$timestamp.log"
         
         $Global:WinKitLoggerConfig.LogPath = $logFile
         $Global:WinKitLoggerConfig.IsInitialized = $true
         
-        # Tạo file log
+        # Tạo file
         New-Item -ItemType File -Path $logFile -Force | Out-Null
         
         return $true
     }
     catch {
         # Fallback
-        $Global:WinKitLoggerConfig.LogPath = "$env:TEMP\winkit_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+        $Global:WinKitLoggerConfig.LogPath = "$env:TEMP\winkit-$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
         $Global:WinKitLoggerConfig.IsInitialized = $true
-        
-        try {
-            New-Item -ItemType File -Path $Global:WinKitLoggerConfig.LogPath -Force | Out-Null
-        }
-        catch {}
-        
         return $false
     }
 }
+
+
 
 function Write-Log {
     [CmdletBinding()]
@@ -68,19 +64,10 @@ function Write-Log {
     }
     
     try {
-        $logFile = $Global:WinKitLoggerConfig.LogPath
-        if (Test-Path $logFile) {
-            $logSize = (Get-Item $logFile).Length / 1MB
-            if ($logSize -ge $Global:WinKitLoggerConfig.MaxSizeMB) {
-                Rotate-Log -LogFile $logFile
-            }
-        }
-        
         $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
         $logEntry = "[$timestamp] [$Level] $Message"
         
-        Add-Content -Path $logFile -Value $logEntry -Encoding UTF8 -Force
-        
+        Add-Content -Path $Global:WinKitLoggerConfig.LogPath -Value $logEntry -Encoding UTF8 -Force
     }
     catch {
         # Silent fail
@@ -136,27 +123,6 @@ function Get-LogPath {
     param()
     
     return $Global:WinKitLoggerConfig.LogPath
-}
-
-function Test-Logger {
-    [CmdletBinding()]
-    param()
-    
-    try {
-        Write-Log -Level INFO -Message "Logger self-test started" -Silent $true
-        Write-Log -Level WARN -Message "This is a warning test" -Silent $true
-        Write-Log -Level ERROR -Message "This is an error test" -Silent $true
-        
-        $logPath = Get-LogPath
-        if (Test-Path $logPath) {
-            Write-Log -Level INFO -Message "Logger self-test completed" -Silent $true
-            return $true
-        }
-        return $false
-    }
-    catch {
-        return $false
-    }
 }
 
 # KHÔNG DÙNG Export-ModuleMember
