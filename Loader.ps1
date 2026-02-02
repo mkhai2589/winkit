@@ -87,8 +87,23 @@ function Start-WinKit {
             throw "Menu.ps1 not found at: $menuPath"
         }
         
-        # 6. Load all feature files for self-registration
-        Write-Log -Message "Loading feature files..." -Level "INFO"
+        # 6. Load và áp dụng config
+        $configPath = Join-Path $WK_ROOT "config.json"
+        if (Test-Path $configPath) {
+            Write-Log -Message "Loading configuration..." -Level "INFO"
+            $global:WK_CONFIG = Read-Json -Path $configPath
+            
+            # Register features từ config (phương pháp legacy)
+            if ($global:WK_CONFIG.features) {
+                foreach ($feature in $global:WK_CONFIG.features) {
+                    Register-FeatureFromConfig -Feature $feature
+                }
+                Write-Log -Message "Registered features from config: $($global:WK_CONFIG.features.Count)" -Level "INFO"
+            }
+        }
+        
+        # 7. Load all feature files cho self-registration
+        Write-Log -Message "Loading feature files for self-registration..." -Level "INFO"
         $featureFiles = Get-ChildItem -Path $global:WK_FEATURES -Filter "*.ps1" -ErrorAction SilentlyContinue
         
         foreach ($file in $featureFiles) {
@@ -102,6 +117,7 @@ function Start-WinKit {
         }
         
         Write-Log -Message "Total features loaded: $($featureFiles.Count)" -Level "INFO"
+        Write-Log -Message "Total features registered: $(($global:WK_FEATURES_REGISTRY | Measure-Object).Count)" -Level "INFO"
         
         # VALIDATE ADMINISTRATOR PRIVILEGES
         if (Get-Command Test-WKAdmin -ErrorAction SilentlyContinue) {
