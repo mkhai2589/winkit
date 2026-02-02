@@ -1,4 +1,4 @@
-# run.ps1 - WinKit Bootstrap Downloader (Improved)
+# run.ps1 - WinKit Bootstrap Downloader với ExecutionPolicy fix
 # Single Entry Point: irm https://raw.githubusercontent.com/mkhai2589/winkit/main/run.ps1 | iex
 
 # ============================================
@@ -7,16 +7,62 @@
 
 $Script:GitHubBase = "https://raw.githubusercontent.com/mkhai2589/winkit/main"
 $Script:TempBase = "$env:TEMP\WinKit"
-$Script:BootstrapStartTime = Get-Date
+$Script:RequiredFiles = @(
+    "core/Logger.ps1", "core/Utils.ps1", "core/Security.ps1",
+    "core/FeatureRegistry.ps1", "core/Interface.ps1",
+    "ui/Theme.ps1", "ui/Logo.ps1", "ui/UI.ps1",
+    "Loader.ps1", "Menu.ps1",
+    "config.json", "version.json"
+)
 
 # ============================================
-# PHASE 1: LOAD SCREEN - CỰC NHANH, CỰC GỌN
+# PHASE 0: EXECUTION POLICY FIX - CHẠY NGAY ĐẦU
+# ============================================
+
+function Initialize-ExecutionPolicy {
+    [CmdletBinding()]
+    param()
+    
+    try {
+        $currentPolicy = Get-ExecutionPolicy -Scope Process -ErrorAction Stop
+        
+        # Danh sách policies cho phép chạy script
+        $allowedPolicies = @('RemoteSigned', 'Unrestricted', 'Bypass')
+        
+        if ($currentPolicy -notin $allowedPolicies) {
+            Write-Host "  [!] Current ExecutionPolicy: $currentPolicy" -ForegroundColor Yellow
+            Write-Host "  [!] Temporarily setting to Bypass for this session..." -ForegroundColor Yellow
+            
+            # Thử set policy cho process hiện tại (không cần admin)
+            Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force -ErrorAction Stop
+            
+            Write-Host "  [!] ExecutionPolicy set to: Bypass (Process scope)" -ForegroundColor Green
+            return $true
+        }
+        
+        return $true
+    }
+    catch {
+        Write-Host "  [!] Failed to set ExecutionPolicy: $_" -ForegroundColor Red
+        
+        # Hướng dẫn người dùng
+        Write-Host "`n=== REQUIRED ACTION ===" -ForegroundColor Red
+        Write-Host "1. Run PowerShell AS ADMINISTRATOR" -ForegroundColor Yellow
+        Write-Host "2. Run this command:" -ForegroundColor Cyan
+        Write-Host "   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force" -ForegroundColor White
+        Write-Host "3. Then run WinKit again.`n" -ForegroundColor Yellow
+        
+        return $false
+    }
+}
+
+# ============================================
+# PHASE 1: LOAD SCREEN - CỰC NHANH
 # ============================================
 
 function Show-LoadScreen {
     Clear-Host
     
-    # Logo tối giản, hiển thị NGAY
     $logo = @"
               W I N K I T
 ---------------------------------------------------------------------------------------------------
@@ -24,7 +70,7 @@ function Show-LoadScreen {
         Author: Minh Khai Contact: 0333090930  
 "@
     
-    # Canh giữa nhanh
+    # Canh giữa
     $consoleWidth = if ($host.UI.RawUI.WindowSize.Width -gt 0) { $host.UI.RawUI.WindowSize.Width } else { 120 }
     
     $logoLines = $logo -split "`n"
@@ -38,10 +84,10 @@ function Show-LoadScreen {
 }
 
 # ============================================
-# PHASE 2: DOWNLOAD HELPER - CÓ TIMEOUT
+# PHASE 2: DOWNLOAD HELPER - RETRY 2 LẦN
 # ============================================
 
-function Invoke-FastDownload {
+function Get-WebFile {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=$true)]
@@ -51,145 +97,108 @@ function Invoke-FastDownload {
         [string]$Destination,
         
         [Parameter(Mandatory=$false)]
-        [int]$TimeoutSeconds = 10
+        [int]$MaxRetries = 2
     )
     
-    try {
-        # Tạo thư mục đích nếu chưa có
-        $destDir = Split-Path $Destination -Parent
-        if (-not (Test-Path $destDir)) {
-            New-Item -ItemType Directory -Path $destDir -Force | Out-Null
-        }
-        
-        # Dùng WebClient để nhanh hơn Invoke-WebRequest
-        $webClient = New-Object System.Net.WebClient
-        $webClient.DownloadFile($Url, $Destination)
-        
-        return $true
-    }
-    catch {
-        # Fallback to Invoke-WebRequest với timeout
+    for ($i = 1; $i -le $MaxRetries; $i++) {
         try {
-            $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec $TimeoutSeconds -ErrorAction Stop
-            [System.IO.File]::WriteAllText($Destination, $response.Content)
+            # WebClient nhanh hơn Invoke-WebRequest
+            $webClient = New-Object System.Net.WebClient
+            $webClient.DownloadFile($Url, $Destination)
             return $true
         }
         catch {
-            return $false
+            if ($i -eq $MaxRetries) {
+                Write-Host "  [!] Failed to download: $Url" -ForegroundColor Red
+                return $false
+            }
+            
+            # Thử lại sau 0.5s
+            Start-Sleep -Milliseconds 500
         }
     }
+    
+    return $false
 }
 
 # ============================================
-# PHASE 3: BOOTSTRAP CORE - TẢI MANIFEST TRƯỚC
+# PHASE 3: BOOTSTRAP CORE - TẢI FILE
 # ============================================
 
 function Initialize-Bootstrap {
     [CmdletBinding()]
     param()
     
-    # Tạo thư mục với timestamp cho lần chạy này
-    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-    $runId = [guid]::NewGuid().ToString().Substring(0, 8)
-    $tempDir = "$Script:TempBase\$timestamp`_$runId"
-    
     try {
+        # Tạo thư mục với timestamp
+        $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+        $runId = [guid]::NewGuid().ToString().Substring(0, 8)
+        $tempDir = "$Script:TempBase\$timestamp`_$runId"
+        
         New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+        New-Item -ItemType Directory -Path "$tempDir\core" -Force | Out-Null
+        New-Item -ItemType Directory -Path "$tempDir\ui" -Force | Out-Null
+        New-Item -ItemType Directory -Path "$tempDir\features" -Force | Out-Null
+        New-Item -ItemType Directory -Path "$tempDir\assets" -Force | Out-Null
+        
         return $tempDir
     }
     catch {
+        Write-Host "  [!] Failed to create temp directory: $_" -ForegroundColor Red
         return $null
     }
 }
 
-function Get-FileManifest {
+function Download-RequiredFiles {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=$true)]
         [string]$TempDir
     )
     
-    # Thử tải manifest.json trước
-    $manifestUrl = "$Script:GitHubBase/manifest.json"
-    $manifestPath = Join-Path $tempDir "manifest.json"
-    
-    if (Invoke-FastDownload -Url $manifestUrl -Destination $manifestPath) {
-        try {
-            $manifestContent = Get-Content $manifestPath -Raw -ErrorAction Stop
-            $manifest = $manifestContent | ConvertFrom-Json -ErrorAction Stop
-            
-            # Chuyển đổi thành array của hashtable
-            $fileList = @()
-            foreach ($file in $manifest.files) {
-                $fileList += @{
-                    Path = $file
-                    Dest = $file.Replace("/", "\")
-                }
-            }
-            
-            return $fileList
-        }
-        catch {
-            Write-Host "  [!] Manifest parsing failed, using fallback list" -ForegroundColor Yellow
-        }
-    }
-    
-    # Fallback: hard-coded list (giữ nguyên case-sensitive)
-    return @(
-        @{ Path = "core/Logger.ps1"; Dest = "core\Logger.ps1" },
-        @{ Path = "core/Utils.ps1"; Dest = "core\Utils.ps1" },
-        @{ Path = "core/Security.ps1"; Dest = "core\Security.ps1" },
-        @{ Path = "core/FeatureRegistry.ps1"; Dest = "core\FeatureRegistry.ps1" },
-        @{ Path = "core/Interface.ps1"; Dest = "core\Interface.ps1" },
-        @{ Path = "ui/Theme.ps1"; Dest = "ui\Theme.ps1" },
-        @{ Path = "ui/Logo.ps1"; Dest = "ui\Logo.ps1" },
-        @{ Path = "ui/UI.ps1"; Dest = "ui\UI.ps1" },
-        @{ Path = "config.json"; Dest = "config.json" },
-        @{ Path = "version.json"; Dest = "version.json" },
-        @{ Path = "Loader.ps1"; Dest = "Loader.ps1" },
-        @{ Path = "Menu.ps1"; Dest = "Menu.ps1" },
-        @{ Path = "assets/ascii.txt"; Dest = "assets\ascii.txt" },
-        @{ Path = "features/01_CleanSystem.ps1"; Dest = "features\01_CleanSystem.ps1" }
-    )
-}
-
-function Download-Repository {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$TempDir,
-        
-        [Parameter(Mandatory=$true)]
-        [array]$FileManifest
-    )
-    
     $successCount = 0
-    $totalCount = $FileManifest.Count
+    $totalCount = $Script:RequiredFiles.Count
     
-    Write-Host "`nDownloading repository ($totalCount files)..." -ForegroundColor Yellow
+    Write-Host "`nDownloading files..." -ForegroundColor Yellow
     
-    foreach ($file in $FileManifest) {
-        $url = "$Script:GitHubBase/$($file.Path)"
-        $destPath = Join-Path $TempDir $file.Dest
+    foreach ($file in $Script:RequiredFiles) {
+        $fileName = Split-Path $file -Leaf
+        $url = "$Script:GitHubBase/$file"
+        $destPath = Join-Path $TempDir $file.Replace("/", "\")
         
-        # Hiển thị progress đơn giản, không chiếm nhiều dòng
+        # Hiển thị progress đơn giản
         $percent = [math]::Round(($successCount / $totalCount) * 100)
-        Write-Host "`r[$percent%] $(Split-Path $file.Path -Leaf)" -NoNewline -ForegroundColor Gray
+        Write-Host "`r[$percent%] $fileName" -NoNewline -ForegroundColor Gray
         
-        if (Invoke-FastDownload -Url $url -Destination $destPath) {
+        if (Get-WebFile -Url $url -Destination $destPath) {
             $successCount++
         }
         else {
-            Write-Host "`r[FAIL] $($file.Path)" -ForegroundColor Red
+            # Thử với case khác (Logo.ps1 vs logo.ps1)
+            if ($file -match "Logo\.ps1$") {
+                $altFile = $file -replace "Logo\.ps1$", "logo.ps1"
+                $altUrl = "$Script:GitHubBase/$altFile"
+                Write-Host "`n  [!] Trying alternative case: $altFile" -ForegroundColor Yellow
+                
+                if (Get-WebFile -Url $altUrl -Destination $destPath) {
+                    $successCount++
+                    continue
+                }
+            }
+            
             return $false
         }
     }
     
     Write-Host "`r" + (" " * 50) -NoNewline
-    Write-Host "`rDownload complete: $successCount/$totalCount files" -ForegroundColor Green
+    Write-Host "`rDownloaded: $successCount/$totalCount files" -ForegroundColor Green
     
     return $true
 }
+
+# ============================================
+# PHASE 4: START WINKIT LOCALLY
+# ============================================
 
 function Start-LocalWinKit {
     [CmdletBinding()]
@@ -199,94 +208,110 @@ function Start-LocalWinKit {
     )
     
     try {
-        # Đổi ExecutionPolicy cho process hiện tại
-        $originalPolicy = Get-ExecutionPolicy -Scope Process
-        if ($originalPolicy -eq 'Restricted') {
-            # Thử set policy cho process
-            Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force -ErrorAction SilentlyContinue
-        }
-        
         # Chuyển đến thư mục tạm
         Set-Location $TempDir
         
-        # Load và chạy Loader.ps1
-        . ".\Loader.ps1"
-        Start-WinKit
+        # Dot-source Loader.ps1 (KHÔNG dùng .\)
+        $loaderPath = Join-Path $TempDir "Loader.ps1"
+        if (Test-Path $loaderPath) {
+            # Read file content và execute
+            $loaderContent = Get-Content $loaderPath -Raw
+            Invoke-Expression $loaderContent
+            
+            # Gọi Start-WinKit
+            Start-WinKit
+        }
+        else {
+            throw "Loader.ps1 not found in temp directory"
+        }
     }
     catch {
-        # Khôi phục policy nếu có thể
-        if ($originalPolicy) {
-            Set-ExecutionPolicy -ExecutionPolicy $originalPolicy -Scope Process -Force -ErrorAction SilentlyContinue
-        }
         throw "Failed to start WinKit: $_"
     }
 }
 
 # ============================================
-# PHASE 4: MAIN EXECUTION FLOW - CÓ PROGRESS RÕ
+# PHASE 5: CLEANUP OLD VERSIONS
+# ============================================
+
+function Cleanup-OldVersions {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$false)]
+        [int]$KeepLast = 2
+    )
+    
+    try {
+        if (Test-Path $Script:TempBase) {
+            $oldDirs = Get-ChildItem -Path $Script:TempBase -Directory -ErrorAction SilentlyContinue | 
+                       Sort-Object CreationTime -Descending | 
+                       Select-Object -Skip $KeepLast
+            
+            foreach ($dir in $oldDirs) {
+                Remove-Item -Path $dir.FullName -Recurse -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+    catch {
+        # Ignore cleanup errors
+    }
+}
+
+# ============================================
+# MAIN EXECUTION FLOW
 # ============================================
 
 function Main {
-    # Hiển thị logo NGAY LẬP TỨC
+    # Hiển thị logo NGAY
     Show-LoadScreen
     
-    # Khởi tạo bootstrap
-    Write-Host "`nPreparing environment..." -ForegroundColor Yellow
+    # PHASE 0: Fix ExecutionPolicy
+    Write-Host "`nChecking environment..." -ForegroundColor Yellow
+    if (-not (Initialize-ExecutionPolicy)) {
+        throw "ExecutionPolicy check failed"
+    }
+    
+    # PHASE 1: Khởi tạo bootstrap
     $tempDir = Initialize-Bootstrap
     if (-not $tempDir) {
-        throw "Failed to create temp directory"
+        throw "Failed to initialize bootstrap"
     }
     
     Write-Host "  Temp directory: $tempDir" -ForegroundColor Gray
     
-    # Lấy manifest và tải file
-    $fileManifest = Get-FileManifest -TempDir $tempDir
-    if (-not $fileManifest) {
-        throw "Failed to get file manifest"
+    # PHASE 2: Tải file
+    if (-not (Download-RequiredFiles -TempDir $tempDir)) {
+        throw "Failed to download required files"
     }
     
-    if (-not (Download-Repository -TempDir $tempDir -FileManifest $fileManifest)) {
-        throw "Failed to download repository files"
-    }
+    # PHASE 3: Dọn dẹp cũ
+    Cleanup-OldVersions -KeepLast 2
     
-    # Dọn dẹp các phiên bản cũ (giữ lại 2 phiên bản gần nhất)
-    try {
-        $oldDirs = Get-ChildItem -Path $Script:TempBase -Directory -ErrorAction SilentlyContinue | 
-                   Sort-Object CreationTime -Descending | 
-                   Select-Object -Skip 2
-        
-        foreach ($dir in $oldDirs) {
-            Remove-Item -Path $dir.FullName -Recurse -Force -ErrorAction SilentlyContinue
-        }
-    }
-    catch {
-        # Không quan trọng nếu dọn dẹp thất bại
-    }
-    
-    # Chạy WinKit
+    # PHASE 4: Chạy WinKit
     Write-Host "`nStarting WinKit..." -ForegroundColor Green
-    Start-Sleep -Milliseconds 300
+    Start-Sleep -Milliseconds 500
     Clear-Host
     
     Start-LocalWinKit -TempDir $tempDir
 }
 
 # ============================================
-# EXCEPTION HANDLING - HIỂN THỊ ĐẸP
+# ERROR HANDLING
 # ============================================
 
 trap {
-    # Hiển thị lỗi đẹp hơn
     Write-Host "`n" + ("=" * 50) -ForegroundColor Red
     Write-Host "BOOTSTRAP ERROR" -ForegroundColor Red
     Write-Host ("=" * 50) -ForegroundColor Red
     Write-Host "Error: $_" -ForegroundColor Yellow
-    Write-Host "`nTroubleshooting:" -ForegroundColor Cyan
-    Write-Host "1. Check internet connection" -ForegroundColor Gray
-    Write-Host "2. Verify repository URL: $Script:GitHubBase" -ForegroundColor Gray
-    Write-Host "3. Try running as Administrator" -ForegroundColor Gray
     
-    Write-Host "`nPress any key to exit..." -ForegroundColor Gray
+    Write-Host "`nTroubleshooting steps:" -ForegroundColor Cyan
+    Write-Host "1. Run PowerShell AS ADMINISTRATOR" -ForegroundColor Gray
+    Write-Host "2. Run this command:" -ForegroundColor Gray
+    Write-Host "   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser" -ForegroundColor White
+    Write-Host "3. Then try again.`n" -ForegroundColor Gray
+    
+    Write-Host "Press any key to exit..." -ForegroundColor Gray
     $null = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     
     exit 1
@@ -296,16 +321,13 @@ trap {
 # ENTRY POINT
 # ============================================
 
-# Kiểm tra PowerShell version nhanh
+# Kiểm tra PowerShell version
 if ($PSVersionTable.PSVersion.Major -lt 5) {
     Write-Host "WinKit requires PowerShell 5.1 or later" -ForegroundColor Red
     exit 1
 }
 
-# Set window title
-$host.UI.RawUI.WindowTitle = "WinKit - Windows Optimization Toolkit"
-
-# Resize window nếu có thể
+# Set window size
 try {
     $host.UI.RawUI.WindowSize = New-Object System.Management.Automation.Host.Size(120, 40)
 }
@@ -313,5 +335,11 @@ catch {
     # Bỏ qua nếu không resize được
 }
 
+# Set window title
+$host.UI.RawUI.WindowTitle = "WinKit - Windows Optimization Toolkit"
+
 # Chạy
 Main
+
+# Exit clean
+exit 0
