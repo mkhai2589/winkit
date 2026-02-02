@@ -156,10 +156,10 @@ function Execute-Feature([PSCustomObject]$Feature) {
     try {
         Clear-Host
         
-        # Feature header với border đúng chiều rộng
-        $titleLine = "═══ $($Feature.Title) "
+        # Feature header với border đúng chiều rộng - SỬA: Dùng ký tự ASCII
+        $titleLine = "=== $($Feature.Title) "
         $remainingWidth = $global:WK_MENU_WIDTH - $titleLine.Length
-        $borderLine = $titleLine + ("═" * [math]::Max(0, $remainingWidth))
+        $borderLine = $titleLine + ("=" * [math]::Max(0, $remainingWidth))
         
         Write-Padded $borderLine -Color Cyan -IndentLevel 0
         Write-Padded ""  # Empty line
@@ -199,7 +199,7 @@ function Execute-Feature([PSCustomObject]$Feature) {
     }
     finally {
         Write-Host ""
-        Write-Padded "─" * $global:WK_MENU_WIDTH -Color DarkGray
+        Write-Padded ("-" * $global:WK_MENU_WIDTH) -Color DarkGray
         Write-Padded "Press any key to return to menu..." -NoNewline -Color DarkGray
         $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     }
@@ -215,7 +215,7 @@ function Show-Footer([string]$Status = "READY") {
     }
     
     Write-Padded ""  # Empty line
-    Write-Padded ("─" * $global:WK_MENU_WIDTH) -Color DarkGray
+    Write-Padded ("-" * $global:WK_MENU_WIDTH) -Color DarkGray
     Write-Padded "Status: " -Color White -NoNewLine
     Write-Host $Status -ForegroundColor $statusColor -NoNewline
     Write-Host " | Log: $global:WK_LOG" -ForegroundColor Gray
