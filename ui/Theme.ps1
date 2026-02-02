@@ -169,13 +169,4 @@ function Test-Theme {
     Write-Colored "Theme test completed." -Style Status
 }
 
-# Export functions
-$ExportFunctions = @(
-    'Initialize-Theme',
-    'Get-Theme',
-    'Write-Colored',
-    'Get-Color',
-    'Test-Theme'
-)
 
-Export-ModuleMember -Function $ExportFunctions
