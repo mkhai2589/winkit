@@ -89,4 +89,43 @@ function Start-WinKit {
         
         # 6. Load all feature files for self-registration
         Write-Log -Message "Loading feature files..." -Level "INFO"
-        $featureFiles = Get-ChildItem -Path $global:WK_FEATURES -Filter "*.ps1"
+        $featureFiles = Get-ChildItem -Path $global:WK_FEATURES -Filter "*.ps1" -ErrorAction SilentlyContinue
+        
+        foreach ($file in $featureFiles) {
+            try {
+                . $file.FullName
+                Write-Log -Message "Loaded feature: $($file.Name)" -Level "DEBUG"
+            }
+            catch {
+                Write-Log -Message "Failed to load feature $($file.Name): $_" -Level "ERROR"
+            }
+        }
+        
+        Write-Log -Message "Total features loaded: $($featureFiles.Count)" -Level "INFO"
+        
+        # VALIDATE ADMINISTRATOR PRIVILEGES
+        if (Get-Command Test-WKAdmin -ErrorAction SilentlyContinue) {
+            Test-WKAdmin
+        }
+        
+        # START USER INTERFACE
+        Initialize-UI
+        Show-MainMenu
+        
+    }
+    catch {
+        try { 
+            if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+                Write-Log -Message "Fatal startup error: $_" -Level "ERROR" 
+            }
+        } 
+        catch {}
+        
+        Write-Host ""
+        Write-Host "  FATAL ERROR: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "  Press Enter to exit..." -ForegroundColor Yellow
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+        exit 1
+    }
+}
