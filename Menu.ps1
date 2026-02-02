@@ -16,6 +16,9 @@ function Show-MainMenu {
                 exit 1
             }
             
+            # Sắp xếp features
+            Sort-FeaturesByConfigOrder
+            
             # Hiển thị menu theo kiến trúc: Essential/Advanced 2 cột, Tools full width
             Render-MenuByArchitecture
             
@@ -35,17 +38,24 @@ function Show-MainMenu {
 }
 
 function Render-MenuByArchitecture {
+    # Lấy category order từ config hoặc mặc định
+    $categoryOrder = if ($global:WK_CONFIG -and $global:WK_CONFIG.ui -and $global:WK_CONFIG.ui.categoryOrder) {
+        $global:WK_CONFIG.ui.categoryOrder
+    } else {
+        @("Essential", "Advanced", "Tools")
+    }
+    
+    Write-Padded ""  # Empty line before menu
+    
     # 1. Essential (Left) và Advanced (Right) - 2 cột
     $essentialFeatures = Get-FeaturesByCategory -Category "Essential"
     $advancedFeatures = Get-FeaturesByCategory -Category "Advanced"
     
-    Write-Padded ""  # Empty line before menu
-    
-    # Calculate max rows needed
-    $maxRows = [math]::Max($essentialFeatures.Count, $advancedFeatures.Count)
-    
-    if ($maxRows -gt 0) {
-        # Display section headers
+    if ($essentialFeatures.Count -gt 0 -or $advancedFeatures.Count -gt 0) {
+        # Calculate max rows needed
+        $maxRows = [math]::Max($essentialFeatures.Count, $advancedFeatures.Count)
+        
+        # Display section headers side by side
         $essentialHeader = "[ Essential ]"
         $advancedHeader = "[ Advanced ]"
         
@@ -161,6 +171,7 @@ function Execute-Feature([PSCustomObject]$Feature) {
         
         Write-Padded "  Category: $($Feature.Category)" -Color Gray
         Write-Padded "  File: $($Feature.FileName)" -Color Gray
+        Write-Padded "  Source: $($Feature.Source)" -Color Gray
         Write-Padded ""  # Empty line
         
         # Update footer status
