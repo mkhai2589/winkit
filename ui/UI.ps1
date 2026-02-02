@@ -1,7 +1,7 @@
 # Global padding settings
 $global:WK_PADDING = "  "  # 2 spaces
-$global:WK_COLUMN_WIDTH = 35
-$global:WK_MENU_WIDTH = 74
+$global:WK_COLUMN_WIDTH = 38
+$global:WK_MENU_WIDTH = 76  # Fixed width for separators
 
 function Initialize-UI {
     Clear-Host
@@ -10,7 +10,7 @@ function Initialize-UI {
 }
 
 function Show-Header {
-    $logoPath = Join-Path $PSScriptRoot "logo.ps1"
+    $logoPath = Join-Path $PSScriptRoot "Logo.ps1"
     
     if (Test-Path $logoPath) {
         try {
@@ -45,7 +45,7 @@ function Show-SystemInfoBar {
         
         Write-Padded ""  # Empty line
         Write-Padded "SYSTEM STATUS" -Color White
-        Write-Padded "─" * $global:WK_MENU_WIDTH -Color DarkGray
+        Write-Padded ("─" * $global:WK_MENU_WIDTH) -Color DarkGray
         Write-Padded ""  # Empty line
         
         # Line 1: OS + Shell + Privilege + Mode (all with labels)
@@ -67,10 +67,7 @@ function Show-SystemInfoBar {
             $diskText = "Disk: "
             $diskItems = @()
             
-            # Create a copy to avoid collection modification
-            $disksCopy = @($sysInfo.Disks)
-            
-            foreach ($disk in $disksCopy) {
+            foreach ($disk in $sysInfo.Disks) {
                 $diskItems += "$($disk.Name): $($disk.FreeGB)GB free ($($disk.Percentage)% used)"
             }
             
@@ -103,7 +100,7 @@ function Show-SystemInfoBar {
         }
         
         Write-Padded ""  # Empty line
-        Write-Padded "─" * $global:WK_MENU_WIDTH -Color DarkGray
+        Write-Padded ("─" * $global:WK_MENU_WIDTH) -Color DarkGray
         Write-Padded ""  # Empty line
         
     }
@@ -113,7 +110,6 @@ function Show-SystemInfoBar {
     }
 }
 
-# Helper function for consistent padding
 function Write-Padded {
     param(
         [string]$Text,
@@ -148,6 +144,6 @@ function Write-Section {
 }
 
 function Write-Separator {
-    Write-Padded "─" * $global:WK_MENU_WIDTH -Color DarkGray
+    Write-Padded ("─" * $global:WK_MENU_WIDTH) -Color DarkGray
     Write-Padded ""  # Empty line
 }
