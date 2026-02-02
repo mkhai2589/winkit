@@ -1,5 +1,5 @@
-# core/Logger.ps1
-# WinKit Logging Engine - Silent, Rotation, No Console Spam
+# core/Logger.ps1 - WinKit Logging Engine (SILENT)
+# KHÔNG DÙNG Export-ModuleMember
 
 $Global:WinKitLoggerConfig = @{
     LogPath = $null
@@ -8,7 +8,6 @@ $Global:WinKitLoggerConfig = @{
     IsInitialized = $false
 }
 
-
 function Initialize-Log {
     [CmdletBinding()]
     param(
@@ -16,20 +15,17 @@ function Initialize-Log {
     )
     
     try {
-        # Expand environment variables
-        if ($LogPath.Contains("%TEMP%")) {
-            $LogPath = $LogPath.Replace("%TEMP%", $env:TEMP)
+        # Xóa tất cả log cũ trong thư mục này
+        if (Test-Path $LogPath) {
+            Get-ChildItem -Path $LogPath -Filter "*.log" -File | Remove-Item -Force -ErrorAction SilentlyContinue
         }
-        
-        # Create log directory if not exists
-        if (-not (Test-Path $LogPath)) {
+        else {
             New-Item -ItemType Directory -Path $LogPath -Force | Out-Null
         }
         
-        # Tạo tên file log với timestamp và random ID
+        # Tạo tên file log mới
         $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-        $randomId = [guid]::NewGuid().ToString().Substring(0, 6)
-        $logFile = Join-Path $LogPath "winkit-$timestamp-$randomId.log"
+        $logFile = Join-Path $LogPath "winkit-$timestamp.log"
         
         $Global:WinKitLoggerConfig.LogPath = $logFile
         $Global:WinKitLoggerConfig.IsInitialized = $true
@@ -37,41 +33,21 @@ function Initialize-Log {
         # Tạo file log
         New-Item -ItemType File -Path $logFile -Force | Out-Null
         
-        # Write initial log entry
-        $startTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        $psVersion = $PSVersionTable.PSVersion
-        $os = [System.Environment]::OSVersion.VersionString
-        
-        Add-Content -Path $logFile -Value "=================================================================" -Encoding UTF8
-        Add-Content -Path $logFile -Value "WinKit Log File - $startTime" -Encoding UTF8
-        Add-Content -Path $logFile -Value "PowerShell: $psVersion | OS: $os" -Encoding UTF8
-        Add-Content -Path $logFile -Value "=================================================================`n" -Encoding UTF8
-        
-        # KHÔNG in ra console (silent mode)
         return $true
     }
     catch {
-        # Silent fallback - try to create in temp root
+        # Fallback
+        $Global:WinKitLoggerConfig.LogPath = "$env:TEMP\winkit_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+        $Global:WinKitLoggerConfig.IsInitialized = $true
+        
         try {
-            $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-            $logFile = "$env:TEMP\winkit-$timestamp.log"
-            
-            $Global:WinKitLoggerConfig.LogPath = $logFile
-            $Global:WinKitLoggerConfig.IsInitialized = $true
-            
-            New-Item -ItemType File -Path $logFile -Force | Out-Null
-            return $true
+            New-Item -ItemType File -Path $Global:WinKitLoggerConfig.LogPath -Force | Out-Null
         }
-        catch {
-            # Ultimate fallback - memory only
-            $Global:WinKitLoggerConfig.LogPath = $null
-            $Global:WinKitLoggerConfig.IsInitialized = $true
-            return $false
-        }
+        catch {}
+        
+        return $false
     }
 }
-
-
 
 function Write-Log {
     [CmdletBinding()]
@@ -87,13 +63,11 @@ function Write-Log {
         [bool]$Silent = $true
     )
     
-    # Skip if logger not initialized
     if (-not $Global:WinKitLoggerConfig.IsInitialized) {
         return
     }
     
     try {
-        # Rotate log if needed
         $logFile = $Global:WinKitLoggerConfig.LogPath
         if (Test-Path $logFile) {
             $logSize = (Get-Item $logFile).Length / 1MB
@@ -102,20 +76,14 @@ function Write-Log {
             }
         }
         
-        # Format log entry
         $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
         $logEntry = "[$timestamp] [$Level] $Message"
         
-        # Write to log file
         Add-Content -Path $logFile -Value $logEntry -Encoding UTF8 -Force
-        
-        # NEVER output to console (UX principle)
-        # Console output is handled by UI module only
         
     }
     catch {
-        # Silent fail - logging should not break the application
-        # Could write to event log as fallback, but keeping simple for now
+        # Silent fail
     }
 }
 
@@ -129,13 +97,13 @@ function Rotate-Log {
     try {
         $maxBackup = $Global:WinKitLoggerConfig.MaxBackupFiles
         
-        # Delete oldest backup if exists
+        # Xóa backup cũ nhất
         $oldestBackup = "$LogFile.$maxBackup"
         if (Test-Path $oldestBackup) {
             Remove-Item $oldestBackup -Force -ErrorAction SilentlyContinue
         }
         
-        # Shift existing backups
+        # Shift backups
         for ($i = $maxBackup - 1; $i -ge 1; $i--) {
             $currentBackup = "$LogFile.$i"
             $nextBackup = "$LogFile.$($i + 1)"
@@ -145,24 +113,21 @@ function Rotate-Log {
             }
         }
         
-        # Rename current log to .1
+        # Rename current log
         $firstBackup = "$LogFile.1"
         if (Test-Path $LogFile) {
             Move-Item $LogFile $firstBackup -Force -ErrorAction SilentlyContinue
         }
         
-        # Create new log file
+        # Tạo log mới
         New-Item -ItemType File -Path $LogFile -Force | Out-Null
         
     }
     catch {
-        # If rotation fails, truncate current log
         try {
             Set-Content -Path $LogFile -Value "" -Encoding UTF8 -Force
         }
-        catch {
-            # Last resort - do nothing
-        }
+        catch {}
     }
 }
 
@@ -181,11 +146,10 @@ function Test-Logger {
         Write-Log -Level INFO -Message "Logger self-test started" -Silent $true
         Write-Log -Level WARN -Message "This is a warning test" -Silent $true
         Write-Log -Level ERROR -Message "This is an error test" -Silent $true
-        Write-Log -Level DEBUG -Message "This is a debug test" -Silent $true
         
         $logPath = Get-LogPath
         if (Test-Path $logPath) {
-            Write-Log -Level INFO -Message "Logger self-test completed successfully" -Silent $true
+            Write-Log -Level INFO -Message "Logger self-test completed" -Silent $true
             return $true
         }
         return $false
@@ -195,12 +159,4 @@ function Test-Logger {
     }
 }
 
-# Export module functions
-$ExportFunctions = @(
-    'Initialize-Log',
-    'Write-Log',
-    'Get-LogPath',
-    'Test-Logger'
-)
-
-Export-ModuleMember -Function $ExportFunctions
+# KHÔNG DÙNG Export-ModuleMember
