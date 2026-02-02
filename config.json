@@ -1,11 +1,19 @@
 {
-  "ui": {
-    "menuWidth": 78,
-    "columnWidth": 38,
-    "categoryOrder": ["Essential", "Advanced", "Tools"]
-  },
-  "layout": {
-    "twoColumnCategories": ["Essential", "Advanced"],
-    "singleColumnCategories": ["Tools"]
-  }
+    "Window": {
+        "Width": 120,
+        "Height": 40,
+        "Title": "WinKit - Windows Optimization Toolkit"
+    },
+    "UI": {
+        "Columns": 2,
+        "ShowStatus": true,
+        "StatusItems": ["OS", "PowerShell", "Admin", "Mode", "User", "LogPath"],
+        "LogoStyle": "boxed",
+        "ColorScheme": "default"
+    },
+    "Logging": {
+        "Path": "%TEMP%\\winkit\\",
+        "MaxSizeMB": 1,
+        "MaxBackupFiles": 3
+    }
 }
