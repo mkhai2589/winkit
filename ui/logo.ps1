@@ -2,33 +2,20 @@ function Show-Logo {
     $width = 76  # Fixed width for header
     $padding = $global:WK_PADDING
     
-    # Calculate centering
+    # Tính toán centering với ký tự ASCII
     $title = "W I N K I T"
     $subtitle = "Windows Optimization Toolkit"
     $author = "Author: Minh Khai | 0333 090 930"
     
-    # Top border
-    $borderTop = "╔" + ("═" * ($width - 2)) + "╗"
-    $borderBottom = "╚" + ("═" * ($width - 2)) + "╝"
-    $emptyLine = "║" + (" " * ($width - 2)) + "║"
+    # Tạo border với ký tự ASCII
+    $borderTop = "=" * $width
+    $borderBottom = "=" * $width
     
-    # Title with padding
-    $titlePadding = [math]::Max(0, ($width - 2 - $title.Length)) / 2
-    $leftTitlePad = [math]::Floor($titlePadding)
-    $rightTitlePad = [math]::Ceiling($titlePadding)
-    $titleLine = "║" + (" " * $leftTitlePad) + $title + (" " * $rightTitlePad) + "║"
-    
-    # Subtitle with padding
-    $subPadding = [math]::Max(0, ($width - 2 - $subtitle.Length)) / 2
-    $leftSubPad = [math]::Floor($subPadding)
-    $rightSubPad = [math]::Ceiling($subPadding)
-    $subtitleLine = "║" + (" " * $leftSubPad) + $subtitle + (" " * $rightSubPad) + "║"
-    
-    # Author with padding
-    $authPadding = [math]::Max(0, ($width - 2 - $author.Length)) / 2
-    $leftAuthPad = [math]::Floor($authPadding)
-    $rightAuthPad = [math]::Ceiling($authPadding)
-    $authorLine = "║" + (" " * $leftAuthPad) + $author + (" " * $rightAuthPad) + "║"
+    # Tạo các dòng nội dung
+    $titleLine = "  " + $title.PadLeft(($width + $title.Length) / 2).PadRight($width)
+    $subtitleLine = "  " + $subtitle.PadLeft(($width + $subtitle.Length) / 2).PadRight($width)
+    $emptyLine = "  " + (" " * ($width - 4))
+    $authorLine = "  " + $author.PadLeft(($width + $author.Length) / 2).PadRight($width)
     
     Write-Host "$padding$borderTop" -ForegroundColor Cyan
     Write-Host "$padding$titleLine" -ForegroundColor White
