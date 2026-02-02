@@ -1,8 +1,7 @@
 # Feature tự đăng ký khi file được load
-# KHÔNG CẦN SỬA MENU.PS1 khi thêm feature mới
+# Có thể override config.json nếu cần
 
-# ========== FEATURE REGISTRATION ==========
-# Feature sẽ tự đăng ký với hệ thống khi file được load
+# ========== FEATURE SELF-REGISTRATION ==========
 Register-Feature `
     -Id "CleanSystem" `
     -Title "Clean System" `
@@ -12,7 +11,7 @@ Register-Feature `
     -FileName "01_CleanSystem.ps1" `
     -ExecuteAction { Start-CleanSystem } `
     -RequireAdmin $true
-# ==========================================
+# ===============================================
 
 function Start-CleanSystem {
     Write-Padded "=== System Cleanup ===" -Color Cyan
