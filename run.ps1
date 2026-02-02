@@ -1,21 +1,13 @@
-# ==========================================
-# WinKit Online Bootstrap
-# Single-line installer: irm URL | iex
-# ==========================================
-
 try {
     Set-ExecutionPolicy Bypass -Scope Process -Force -ErrorAction SilentlyContinue
 }
 catch {}
 
-# Configuration
 $WK_ROOT = Join-Path $env:TEMP "winkit"
 $REPO = "https://raw.githubusercontent.com/mkhai2589/winkit/main"
 
-# Clear screen
 Clear-Host
 
-# Show simple logo
 Write-Host "------------------------------------------" -ForegroundColor Cyan
 Write-Host "              W I N K I T                 " -ForegroundColor White
 Write-Host "    Windows Optimization Toolkit          " -ForegroundColor Gray
@@ -24,12 +16,12 @@ Write-Host ""
 Write-Host "Downloading..." -ForegroundColor Yellow
 Write-Host ""
 
-# Create working directory
-if (-not (Test-Path $WK_ROOT)) {
-    New-Item -ItemType Directory -Path $WK_ROOT -Force | Out-Null
+if (Test-Path $WK_ROOT) {
+    Remove-Item -Path $WK_ROOT -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-# List of required files
+New-Item -ItemType Directory -Path $WK_ROOT -Force | Out-Null
+
 $FILES = @(
     "Loader.ps1",
     "Menu.ps1",
@@ -51,7 +43,6 @@ $FILES = @(
     "features/07_RemoveWindowsAI.ps1"
 )
 
-# Download each file with progress indicator
 $success = $true
 $totalFiles = $FILES.Count
 $currentFile = 0
@@ -60,7 +51,6 @@ foreach ($relativePath in $FILES) {
     $currentFile++
     $percentComplete = [math]::Round(($currentFile / $totalFiles) * 100)
     
-    # Update progress bar
     Write-Progress -Activity "Downloading WinKit" -Status "Preparing..." -PercentComplete $percentComplete
     
     try {
@@ -72,13 +62,10 @@ foreach ($relativePath in $FILES) {
             New-Item -ItemType Directory -Path $directory -Force | Out-Null
         }
         
-        # Sử dụng UTF8 encoding để tránh lỗi Unicode
-        $content = Invoke-WebRequest -Uri $remoteUrl -UseBasicParsing -ErrorAction Stop
-        [System.IO.File]::WriteAllText($localPath, $content.Content, [System.Text.Encoding]::UTF8)
+        Invoke-WebRequest -Uri $remoteUrl -UseBasicParsing -OutFile $localPath -ErrorAction Stop
         
     }
     catch {
-        # Hide progress bar on error
         Write-Progress -Activity "Downloading WinKit" -Completed
         
         Write-Host "  [ERROR] Failed to download: $relativePath" -ForegroundColor Red
@@ -87,10 +74,8 @@ foreach ($relativePath in $FILES) {
     }
 }
 
-# Complete the progress bar
 Write-Progress -Activity "Downloading WinKit" -Completed
 
-# Check download result
 if (-not $success) {
     Write-Host ""
     Write-Host "Download failed. Check internet connection." -ForegroundColor Red
@@ -104,12 +89,7 @@ Write-Host "Download complete!" -ForegroundColor Green
 Write-Host "Starting WinKit..." -ForegroundColor Cyan
 Start-Sleep -Seconds 1
 
-# Load and execute
 try {
-    # Set UTF-8 encoding cho console
-    [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-    [Console]::InputEncoding = [System.Text.Encoding]::UTF8
-    
     . "$WK_ROOT\Loader.ps1"
     Start-WinKit
 }
