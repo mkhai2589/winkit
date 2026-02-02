@@ -5,13 +5,15 @@ function Start-WinKit {
         $global:WK_FEATURES = Join-Path $WK_ROOT "features"
         $global:WK_LOG = Join-Path $env:TEMP "winkit.log"
         $global:WK_PADDING = "  "  # 2 spaces for left padding
+        $global:WK_MENU_WIDTH = 76  # Fixed width for separators
         
-        # SET CONSOLE WINDOW SIZE (120x40)
+        # SET CONSOLE WINDOW SIZE (120x40) - FIXED
         try {
             $Host.UI.RawUI.WindowTitle = "WinKit - Windows Optimization Toolkit"
-            $size = New-Object System.Management.Automation.Host.Size(120, 40)
-            $Host.UI.RawUI.WindowSize = $size
-            $Host.UI.RawUI.BufferSize = $size
+            $bufferSize = New-Object System.Management.Automation.Host.Size(120, 3000)
+            $windowSize = New-Object System.Management.Automation.Host.Size(120, 40)
+            $Host.UI.RawUI.BufferSize = $bufferSize
+            $Host.UI.RawUI.WindowSize = $windowSize
         }
         catch {
             # Silently continue if resize fails
@@ -23,20 +25,30 @@ function Start-WinKit {
         }
         
         # LOAD CORE MODULES IN CORRECT ORDER
-        # 1. Logger first (so Write-Log is available immediately)
+        # 1. Utils first (contains Read-Json)
+        $utilsPath = Join-Path $WK_ROOT "core\Utils.ps1"
+        if (Test-Path $utilsPath) {
+            . $utilsPath
+        } else {
+            throw "Core module not found: Utils.ps1"
+        }
+        
+        # 2. Logger
         $loggerPath = Join-Path $WK_ROOT "core\Logger.ps1"
         if (Test-Path $loggerPath) {
             . $loggerPath
             Write-Log -Message "WinKit starting from: $WK_ROOT" -Level "INFO"
-            Write-Log -Message "Console size set to 120x40" -Level "DEBUG"
         } else {
-            Write-Host "  WARNING: Logger.ps1 not found" -ForegroundColor Yellow
+            # Fallback minimal logger
+            function Write-Log { param($Message, $Level) 
+                Add-Content -Path $global:WK_LOG -Value "[$(Get-Date)] [$Level] $Message" 
+            }
+            Write-Log -Message "WinKit starting (fallback logger)" -Level "INFO"
         }
         
-        # 2. Load remaining core modules
+        # 3. Load remaining core modules
         $coreModules = @(
             "core\Security.ps1",
-            "core\Utils.ps1",
             "core\Interface.ps1"
         )
         
@@ -44,16 +56,17 @@ function Start-WinKit {
             $modulePath = Join-Path $WK_ROOT $module
             if (Test-Path $modulePath) {
                 . $modulePath
+                Write-Log -Message "Loaded module: $module" -Level "DEBUG"
             } else {
-                Write-Host "  WARNING: $module not found" -ForegroundColor Yellow
+                Write-Log -Message "Module not found: $module" -Level "WARN"
             }
         }
         
-        # 3. Load UI modules
+        # 4. Load UI modules
         $uiModules = @(
-            "ui\logo.ps1",
             "ui\Theme.ps1",
-            "ui\UI.ps1"
+            "ui\UI.ps1",
+            "ui\Logo.ps1"
         )
         
         foreach ($module in $uiModules) {
@@ -61,61 +74,19 @@ function Start-WinKit {
             if (Test-Path $modulePath) {
                 . $modulePath
             } else {
-                Write-Host "  WARNING: $module not found" -ForegroundColor Yellow
+                Write-Log -Message "UI module not found: $module" -Level "WARN"
             }
         }
         
-        # 4. Load Menu module
+        # 5. Load Menu module
         $menuPath = Join-Path $WK_ROOT "Menu.ps1"
         if (Test-Path $menuPath) {
             . $menuPath
+            Write-Log -Message "Menu module loaded" -Level "INFO"
         } else {
             throw "Menu.ps1 not found at: $menuPath"
         }
         
-        # VALIDATE ADMINISTRATOR PRIVILEGES
-        if (Get-Command Test-WKAdmin -ErrorAction SilentlyContinue) {
-            Test-WKAdmin
-        } else {
-            Write-Host "  WARNING: Test-WKAdmin function not found" -ForegroundColor Yellow
-        }
-        
-        # Log successful loading
-        if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
-            Write-Log -Message "All modules loaded successfully" -Level "INFO"
-        }
-        
-        # START USER INTERFACE
-        if (Get-Command Initialize-UI -ErrorAction SilentlyContinue) {
-            Initialize-UI
-        } else {
-            Write-Host "  ERROR: Initialize-UI function not found" -ForegroundColor Red
-            throw "UI initialization failed"
-        }
-        
-        if (Get-Command Show-MainMenu -ErrorAction SilentlyContinue) {
-            Show-MainMenu
-        } else {
-            Write-Host "  ERROR: Show-MainMenu function not found" -ForegroundColor Red
-            throw "Main menu not available"
-        }
-        
-    }
-    catch {
-        # Try to log the error if logger is available
-        try { 
-            if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
-                Write-Log -Message "Fatal startup error: $_" -Level "ERROR" 
-            }
-        } 
-        catch {}
-        
-        # Show user-friendly error
-        Write-Host ""
-        Write-Host "  FATAL ERROR: $($_.Exception.Message)" -ForegroundColor Red
-        Write-Host ""
-        Write-Host "  Press Enter to exit..." -ForegroundColor Yellow
-        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-        exit 1
-    }
-}
+        # 6. Load all feature files for self-registration
+        Write-Log -Message "Loading feature files..." -Level "INFO"
+        $featureFiles = Get-ChildItem -Path $global:WK_FEATURES -Filter "*.ps1"
