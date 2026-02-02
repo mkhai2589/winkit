@@ -1,64 +1,11 @@
 {
-  "name": "WinKit",
-  "version": "1.0.0",
-  "description": "Windows Optimization Toolkit",
   "ui": {
-    "categoryOrder": ["Essential", "Advanced", "Tools"]
+    "categoryOrder": ["Essential", "Advanced", "Tools"],
+    "menuWidth": 76,
+    "columnWidth": 38
   },
-  "features": [
-    {
-      "id": "CleanSystem",
-      "order": 1,
-      "title": "Clean System",
-      "description": "Clean temporary files and system caches",
-      "file": "01_CleanSystem.ps1",
-      "requireAdmin": true,
-      "category": "Essential"
-    },
-    {
-      "id": "Debloat",
-      "order": 2,
-      "title": "Debloat Windows",
-      "description": "Remove unnecessary Windows apps and features",
-      "file": "03_Debloat.ps1",
-      "requireAdmin": true,
-      "category": "Essential"
-    },
-    {
-      "id": "Network",
-      "order": 3,
-      "title": "Network Optimization",
-      "description": "Configure DNS and network optimizations",
-      "file": "05_Network.ps1",
-      "requireAdmin": true,
-      "category": "Essential"
-    },
-    {
-      "id": "InstallApps",
-      "order": 4,
-      "title": "Install Applications",
-      "description": "Install essential software packages",
-      "file": "06_InstallApps.ps1",
-      "requireAdmin": true,
-      "category": "Advanced"
-    },
-    {
-      "id": "RemoveWindowsAI",
-      "order": 5,
-      "title": "Remove Windows AI",
-      "description": "Remove Copilot, Recall, and AI features",
-      "file": "07_RemoveWindowsAI.ps1",
-      "requireAdmin": true,
-      "category": "Advanced"
-    },
-    {
-      "id": "ActivationTool",
-      "order": 6,
-      "title": "Microsoft Tools",
-      "description": "Activate Windows and Office",
-      "file": "02_ActivationTool.ps1",
-      "requireAdmin": true,
-      "category": "Tools"
-    }
-  ]
+  "layout": {
+    "twoColumnCategories": ["Essential", "Advanced"],
+    "singleColumnCategories": ["Tools"]
+  }
 }
