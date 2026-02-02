@@ -21,7 +21,6 @@ Write-Host "              W I N K I T                 " -ForegroundColor White
 Write-Host "    Windows Optimization Toolkit          " -ForegroundColor Gray
 Write-Host "------------------------------------------" -ForegroundColor Cyan
 Write-Host ""
-
 Write-Host "Downloading..." -ForegroundColor Yellow
 Write-Host ""
 
@@ -51,14 +50,17 @@ $FILES = @(
     "features/07_RemoveWindowsAI.ps1"
 )
 
-# Download each file with simple progress
+# Download each file with progress indicator
 $success = $true
 $totalFiles = $FILES.Count
 $currentFile = 0
 
 foreach ($relativePath in $FILES) {
     $currentFile++
-    $percent = [math]::Round(($currentFile / $totalFiles) * 100)
+    $percentComplete = [math]::Round(($currentFile / $totalFiles) * 100)
+    
+    # Update progress bar
+    Write-Progress -Activity "Downloading WinKit" -Status "Preparing..." -PercentComplete $percentComplete
     
     try {
         $remoteUrl = "$REPO/$relativePath"
@@ -69,18 +71,21 @@ foreach ($relativePath in $FILES) {
             New-Item -ItemType Directory -Path $directory -Force | Out-Null
         }
         
-        # Show progress
-        Write-Host "  [$percent%] $relativePath" -ForegroundColor Gray
-        
         Invoke-WebRequest -Uri $remoteUrl -UseBasicParsing -OutFile $localPath -ErrorAction Stop
         
     }
     catch {
-        Write-Host "  [ERROR] Failed: $relativePath" -ForegroundColor Red
+        # Hide progress bar on error
+        Write-Progress -Activity "Downloading WinKit" -Completed
+        
+        Write-Host "  [ERROR] Failed to download: $relativePath" -ForegroundColor Red
         $success = $false
         break
     }
 }
+
+# Complete the progress bar
+Write-Progress -Activity "Downloading WinKit" -Completed
 
 # Check download result
 if (-not $success) {
