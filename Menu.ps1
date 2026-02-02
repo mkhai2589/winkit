@@ -3,7 +3,6 @@ function Show-MainMenu {
         try {
             Clear-Host
             Show-Header
-            Write-Host ""
             Show-SystemInfoBar
             
             # LOAD CONFIGURATION
@@ -54,6 +53,9 @@ function Show-MainMenu {
             }
             
             $categoryKeys = @($categories.Keys)
+            
+            Write-Padded ""  # Empty line before menu
+            
             foreach ($category in $categoryOrder) {
                 if ($categoryKeys -contains $category -and $categories[$category].Count -gt 0) {
                     $categoryColor = if ($config.ui -and $config.ui.categoryColors -and $config.ui.categoryColors.$category) { 
@@ -66,29 +68,52 @@ function Show-MainMenu {
                         }
                     }
                     
-                    Write-Host ""
-                    Write-Host "[ $category ]" -ForegroundColor $categoryColor
-                    Write-Host ""
+                    # Category header
+                    Write-Padded "[ $category ]" -Color $categoryColor
+                    Write-Padded ""  # Empty line
                     
                     # Create copy of features in this category
                     $categoryFeatures = @($categories[$category])
-                    foreach ($feature in $categoryFeatures) {
-                        $dangerIcon = switch ($feature.dangerLevel) {
-                            "High" { " (!)" }
-                            "Medium" { " (?)" }
-                            default { "" }
+                    
+                    # Display features in 2 columns
+                    for ($i = 0; $i -lt $categoryFeatures.Count; $i += 2) {
+                        $line = ""
+                        
+                        # First column
+                        if ($i -lt $categoryFeatures.Count) {
+                            $feature1 = $categoryFeatures[$i]
+                            $dangerIcon1 = switch ($feature1.dangerLevel) {
+                                "High" { " (!)" }
+                                "Medium" { " (?)" }
+                                default { "" }
+                            }
+                            $col1 = " [$($feature1.order)]$dangerIcon1 $($feature1.title)"
+                            $line += $col1.PadRight($global:WK_COLUMN_WIDTH)
                         }
                         
-                        Write-Host " [$($feature.order)]$dangerIcon $($feature.title)" -ForegroundColor White
+                        # Second column
+                        if ($i + 1 -lt $categoryFeatures.Count) {
+                            $feature2 = $categoryFeatures[$i + 1]
+                            $dangerIcon2 = switch ($feature2.dangerLevel) {
+                                "High" { " (!)" }
+                                "Medium" { " (?)" }
+                                default { "" }
+                            }
+                            $col2 = " [$($feature2.order)]$dangerIcon2 $($feature2.title)"
+                            $line += $col2
+                        }
+                        
+                        Write-Padded $line -Color White
                     }
+                    
+                    Write-Padded ""  # Empty line between categories
                 }
             }
             
             # EXIT OPTION
-            Write-Host ""
-            Write-Host "------------------------------------------" -ForegroundColor DarkGray
-            Write-Host " [0] Exit" -ForegroundColor Gray
-            Write-Host ""
+            Write-Padded "------------------------------------------" -Color DarkGray
+            Write-Padded " [0] Exit" -Color Gray
+            Write-Padded ""  # Empty line
             
             # FOOTER
             Show-Footer -Status "Ready"
@@ -96,20 +121,22 @@ function Show-MainMenu {
             # USER INPUT
             if ($availableFeatures.Count -gt 0) {
                 $maxOption = ($availableFeatures | Measure-Object -Property order -Maximum).Maximum
-                Write-Host "Select an option [0-$maxOption]: " -NoNewline -ForegroundColor Yellow
+                Write-Padded "Select an option [0-$maxOption]: " -NoNewline -Color Yellow
             } else {
-                Write-Host "No features available. Select [0] to exit: " -NoNewline -ForegroundColor Yellow
+                Write-Padded "No features available. Select [0] to exit: " -NoNewline -Color Yellow
             }
             
             $choice = Read-Host
             
             if ($choice -eq "0") {
-                Write-Host "`nExiting WinKit. Goodbye!" -ForegroundColor Cyan
+                Write-Host ""
+                Write-Padded "Exiting WinKit. Goodbye!" -Color Cyan
                 exit 0
             }
             
             if (-not ($choice -match '^\d+$')) {
-                Write-Host "`nInvalid input! Please enter a number." -ForegroundColor Red
+                Write-Host ""
+                Write-Padded "Invalid input! Please enter a number." -Color Red
                 Pause
                 continue
             }
@@ -117,7 +144,8 @@ function Show-MainMenu {
             $selectedFeature = $availableFeatures | Where-Object { $_.order -eq [int]$choice }
             
             if (-not $selectedFeature) {
-                Write-Host "`nOption $choice not available!" -ForegroundColor Red
+                Write-Host ""
+                Write-Padded "Option $choice not available!" -Color Red
                 Pause
                 continue
             }
@@ -126,8 +154,9 @@ function Show-MainMenu {
             
         }
         catch {
-            Write-Host "`nMenu Error: $_" -ForegroundColor Red
-            Write-Host "Returning to menu in 3 seconds..." -ForegroundColor Yellow
+            Write-Host ""
+            Write-Padded "Menu Error: $_" -Color Red
+            Write-Padded "Returning to menu in 3 seconds..." -Color Yellow
             Start-Sleep -Seconds 3
         }
     }
@@ -136,13 +165,15 @@ function Show-MainMenu {
 function Execute-Feature([PSCustomObject]$Feature) {
     try {
         Clear-Host
-        Write-Host "=== $($Feature.title) ===" -ForegroundColor Cyan
+        
+        # Feature header with padding
+        Write-Padded "=== $($Feature.title) ===" -Color Cyan -IndentLevel 0
+        Write-Padded ""  # Empty line
         
         if ($Feature.description) {
-            Write-Host "$($Feature.description)" -ForegroundColor Gray
+            Write-Padded "$($Feature.description)" -Color Gray
+            Write-Padded ""  # Empty line
         }
-        
-        Write-Host ""
         
         # LOAD FEATURE FILE
         $featurePath = Join-Path $global:WK_FEATURES $Feature.file
@@ -159,7 +190,7 @@ function Execute-Feature([PSCustomObject]$Feature) {
         if (Get-Command $functionName -ErrorAction SilentlyContinue) {
             # Update footer to show running status
             Show-Footer -Status "Running: $($Feature.title)"
-            Write-Host ""
+            Write-Padded ""  # Empty line
             
             # Execute feature
             & $functionName
@@ -172,11 +203,20 @@ function Execute-Feature([PSCustomObject]$Feature) {
         }
     }
     catch {
-        Write-Host "`nFeature Error: $_" -ForegroundColor Red
+        Write-Host ""
+        Write-Padded "Feature Error: $_" -Color Red
         Write-Log -Message "Feature failed: $($Feature.id) - $_" -Level "ERROR"
     }
     finally {
         Write-Host ""
-        Pause -Message "Press any key to return to main menu..."
+        Write-Padded "Press any key to return to menu..." -NoNewline -Color DarkGray
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     }
+}
+
+function Show-Footer([string]$Status = "Ready") {
+    Write-Padded ""  # Empty line
+    Write-Padded "------------------------------------------" -Color DarkGray
+    Write-Padded "[INFO] $Status | Log: $global:WK_LOG" -Color Cyan
+    Write-Padded ""  # Empty line
 }
