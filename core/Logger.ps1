@@ -15,21 +15,41 @@ function Initialize-Log {
     )
     
     try {
+        # Expand environment variables
+        if ($LogPath.Contains("%TEMP%")) {
+            $LogPath = $LogPath.Replace("%TEMP%", $env:TEMP)
+        }
+        
         # Create log directory if not exists
         if (-not (Test-Path $LogPath)) {
             New-Item -ItemType Directory -Path $LogPath -Force | Out-Null
         }
         
-        $Global:WinKitLoggerConfig.LogPath = Join-Path $LogPath "winkit.log"
+        # Set log file path
+        $logFile = Join-Path $LogPath "winkit.log"
+        $Global:WinKitLoggerConfig.LogPath = $logFile
         $Global:WinKitLoggerConfig.IsInitialized = $true
         
-        Write-Log -Level INFO -Message "Logger initialized at: $($Global:WinKitLoggerConfig.LogPath)" -Silent $true
+        # Tạo file log nếu chưa tồn tại
+        if (-not (Test-Path $logFile)) {
+            New-Item -ItemType File -Path $logFile -Force | Out-Null
+        }
+        
+        Write-Log -Level INFO -Message "Logger initialized at: $logFile" -Silent $true
         return $true
     }
     catch {
-        # Fallback to temp file
+        # Fallback
         $Global:WinKitLoggerConfig.LogPath = "$env:TEMP\winkit_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
         $Global:WinKitLoggerConfig.IsInitialized = $true
+        
+        # Tạo file fallback
+        try {
+            New-Item -ItemType File -Path $Global:WinKitLoggerConfig.LogPath -Force | Out-Null
+        }
+        catch {
+            # Last resort - in memory only
+        }
         
         Write-Log -Level ERROR -Message "Failed to initialize logger: $_" -Silent $true
         return $false
