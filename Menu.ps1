@@ -5,7 +5,7 @@ function Show-MainMenu {
             Show-Header
             Show-SystemInfoBar
             
-            # LOAD CONFIGURATION
+            # LOAD CONFIGURATION - DATA-DRIVEN
             $configPath = Join-Path $global:WK_ROOT "config.json"
             if (-not (Test-Path $configPath)) {
                 throw "Configuration file not found at: $configPath"
@@ -13,15 +13,16 @@ function Show-MainMenu {
             
             $config = Read-Json -Path $configPath
             
-            # GET AVAILABLE FEATURES
+            # GET AVAILABLE FEATURES (Self-registration)
             $availableFeatures = @()
             
-            # Create a copy of features array to avoid modification during iteration
+            # Create a copy of features array
             $featuresCopy = @($config.features)
             
             foreach ($feature in $featuresCopy) {
                 $featurePath = Join-Path $global:WK_FEATURES $feature.file
                 if (Test-Path $featurePath) {
+                    # Feature tự đăng ký: kiểm tra file tồn tại
                     $availableFeatures += $feature
                 }
             }
@@ -37,7 +38,7 @@ function Show-MainMenu {
                 $categories[$feature.category] += $feature
             }
             
-            # SORT FEATURES IN EACH CATEGORY
+            # SORT FEATURES IN EACH CATEGORY by order from config
             $categoryKeys = @($categories.Keys)
             foreach ($category in $categoryKeys) {
                 $sortedFeatures = $categories[$category] | Sort-Object order
@@ -48,63 +49,76 @@ function Show-MainMenu {
             if ($config.ui -and $config.ui.categoryOrder) {
                 $categoryOrder = $config.ui.categoryOrder
             } else {
-                # Default order if not specified
+                # Default order
                 $categoryOrder = @("Essential", "Advanced", "Tools")
             }
             
+            # DISPLAY DUAL COLUMN LAYOUT
             Write-Padded ""  # Empty line before menu
             
-            $categoryKeys = @($categories.Keys)
-            foreach ($category in $categoryOrder) {
-                if ($categoryKeys -contains $category -and $categories[$category].Count -gt 0) {
-                    $categoryColor = if ($config.ui -and $config.ui.categoryColors -and $config.ui.categoryColors.$category) { 
-                        $config.ui.categoryColors.$category 
-                    } else { 
-                        if ($WK_THEME -and $WK_THEME[$category]) {
-                            $WK_THEME[$category]
-                        } else {
-                            "White"
-                        }
+            # Essential (Left) and Advanced (Right) side by side
+            $essentialFeatures = if ($categories.ContainsKey("Essential")) { $categories["Essential"] } else { @() }
+            $advancedFeatures = if ($categories.ContainsKey("Advanced")) { $categories["Advanced"] } else { @() }
+            
+            if ($essentialFeatures.Count -gt 0 -or $advancedFeatures.Count -gt 0) {
+                # Calculate max rows needed
+                $maxRows = [math]::Max($essentialFeatures.Count, $advancedFeatures.Count)
+                
+                # Display section headers side by side
+                $essentialHeader = "[ Essential ]"
+                $advancedHeader = "[ Advanced ]"
+                
+                # Calculate padding for headers
+                $headerPadding = $global:WK_COLUMN_WIDTH - $essentialHeader.Length
+                $headerLine = $essentialHeader + (" " * $headerPadding) + $advancedHeader
+                
+                Write-Padded $headerLine -Color Green
+                Write-Padded ""  # Empty line
+                
+                # Display features in parallel columns
+                for ($i = 0; $i -lt $maxRows; $i++) {
+                    $line = ""
+                    
+                    # Essential column
+                    if ($i -lt $essentialFeatures.Count) {
+                        $feature1 = $essentialFeatures[$i]
+                        $col1 = " [$($feature1.order)] $($feature1.title)"
+                        $line += $col1.PadRight($global:WK_COLUMN_WIDTH)
+                    } else {
+                        $line += "".PadRight($global:WK_COLUMN_WIDTH)
                     }
                     
-                    # Category header
-                    Write-Padded "[ $category ]" -Color $categoryColor
-                    Write-Padded ""  # Empty line
-                    
-                    # Create copy of features in this category
-                    $categoryFeatures = @($categories[$category])
-                    
-                    # Display features in 2 columns - ALWAYS 2 items per line
-                    # If odd number of features, last line will have empty second column
-                    for ($i = 0; $i -lt $categoryFeatures.Count; $i += 2) {
-                        $col1 = ""
-                        $col2 = ""
-                        
-                        # First column
-                        if ($i -lt $categoryFeatures.Count) {
-                            $feature1 = $categoryFeatures[$i]
-                            $col1 = " [$($feature1.order)] $($feature1.title)"
-                        }
-                        
-                        # Second column
-                        if ($i + 1 -lt $categoryFeatures.Count) {
-                            $feature2 = $categoryFeatures[$i + 1]
-                            $col2 = " [$($feature2.order)] $($feature2.title)"
-                        }
-                        
-                        # Format line with two columns
-                        $line = $col1.PadRight($global:WK_COLUMN_WIDTH) + $col2
-                        Write-Padded $line -Color White
+                    # Advanced column
+                    if ($i -lt $advancedFeatures.Count) {
+                        $feature2 = $advancedFeatures[$i]
+                        $col2 = " [$($feature2.order)] $($feature2.title)"
+                        $line += $col2
                     }
                     
-                    Write-Padded ""  # Empty line between categories
+                    Write-Padded $line -Color White
                 }
+                
+                Write-Padded ""  # Empty line
+                Write-Separator
             }
             
-            # EXIT OPTION (single column)
-            Write-Padded "------------------------------------------" -Color DarkGray
+            # Tools category (full width)
+            if ($categories.ContainsKey("Tools") -and $categories["Tools"].Count -gt 0) {
+                Write-Section -Text "Tools" -Color "Cyan"
+                
+                $toolsFeatures = $categories["Tools"]
+                foreach ($feature in $toolsFeatures) {
+                    Write-Padded " [$($feature.order)] $($feature.title)" -Color White
+                }
+                
+                Write-Padded ""  # Empty line
+                Write-Separator
+            }
+            
+            # EXIT OPTION
             Write-Padded " [0] Exit" -Color Gray
             Write-Padded ""  # Empty line
+            Write-Separator
             
             # FOOTER with improved status
             Show-Footer -Status "READY"
@@ -215,7 +229,7 @@ function Show-Footer([string]$Status = "READY") {
     }
     
     Write-Padded ""  # Empty line
-    Write-Padded "------------------------------------------" -Color DarkGray
+    Write-Padded "─" * $global:WK_MENU_WIDTH -Color DarkGray
     Write-Padded "Status: " -Color White -NoNewLine
     Write-Host $Status -ForegroundColor $statusColor -NoNewline
     Write-Host " | Log: $global:WK_LOG" -ForegroundColor Gray
