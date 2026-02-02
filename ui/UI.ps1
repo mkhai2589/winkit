@@ -273,16 +273,3 @@ function Clear-ScreenSafe {
     }
 }
 
-# Export functions
-$ExportFunctions = @(
-    'Show-Header',
-    'Show-SystemStatus',
-    'Show-Menu',
-    'Show-Prompt',
-    'Show-StatusBar',
-    'Write-Separator',
-    'Get-SeparatorLine',
-    'Clear-ScreenSafe'
-)
-
-Export-ModuleMember -Function $ExportFunctions
