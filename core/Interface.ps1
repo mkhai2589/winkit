@@ -10,6 +10,9 @@ function Get-WKSystemInfo {
         $osBuild = $os.BuildNumber
         $osArch = if ([System.Environment]::Is64BitOperatingSystem) { "64-bit" } else { "32-bit" }
         
+        # Combine OS info
+        $fullOS = "$osName Build $osBuild ($osArch)"
+        
         # User and Computer
         $user = [System.Environment]::UserName
         $computer = [System.Environment]::MachineName
@@ -19,7 +22,7 @@ function Get-WKSystemInfo {
         
         # Admin check
         $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
-        $admin = if ($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { "YES" } else { "NO" }
+        $admin = if ($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { "Administrator" } else { "User" }
         
         # Network status
         $online = $false
@@ -55,7 +58,7 @@ function Get-WKSystemInfo {
             }
         }
         
-        # Disk info - compact display
+        # Disk info
         $disks = @()
         try {
             $diskDrives = Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Root -and $_.Used -ne $null -and $_.Free -ne $null }
@@ -80,7 +83,7 @@ function Get-WKSystemInfo {
         return @{
             User = $user
             Computer = $computer
-            OS = $osName
+            OS = $fullOS
             Build = $osBuild
             Arch = $osArch
             PSVersion = $psVersion
@@ -100,10 +103,10 @@ function Get-WKSystemInfo {
             Build = "Unknown"
             Arch = "Unknown"
             PSVersion = "Unknown"
-            Admin = "NO"
+            Admin = "User"
             Mode = "Offline"
             TimeZone = "Unknown"
-            TPM = "UNKNOWN"
+            TPM = "NO"
             Disks = @()
             Version = "1.0.0"
         }
