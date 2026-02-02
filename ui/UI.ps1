@@ -18,7 +18,7 @@ function Show-Header {
             Show-Logo
         }
         catch {
-            # Fallback simple header - SỬA: Dùng ký tự ASCII
+            # Fallback simple header
             Write-Padded "================================================================" -Color Cyan
             Write-Padded "  W I N K I T                                                   " -Color White
             Write-Padded "  Windows Optimization Toolkit                                  " -Color Gray
@@ -110,6 +110,7 @@ function Show-SystemInfoBar {
     }
 }
 
+# Helper function for consistent padding
 function Write-Padded {
     param(
         [string]$Text,
