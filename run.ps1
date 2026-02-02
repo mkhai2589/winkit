@@ -18,58 +18,42 @@ $Script:RequiredFiles = @(
 )
 
 # ============================================
-# PHASE 0: EXECUTION POLICY FIX - CHẠY NGAY ĐẦU
+# PHASE 0: CLEAN OLD LOGS - CHẠY ĐẦU TIÊN
 # ============================================
 
-function Initialize-ExecutionPolicy {
+function Clear-OldLogs {
     [CmdletBinding()]
     param()
     
     try {
-        $currentPolicy = Get-ExecutionPolicy -Scope Process -ErrorAction Stop
-        
-        # Danh sách policies cho phép chạy script
-        $allowedPolicies = @('RemoteSigned', 'Unrestricted', 'Bypass')
-        
-        if ($currentPolicy -notin $allowedPolicies) {
-            Write-Host "  [!] Current ExecutionPolicy: $currentPolicy" -ForegroundColor Yellow
-            Write-Host "  [!] Temporarily setting to Bypass for this session..." -ForegroundColor Yellow
-            
-            # Thử set policy cho process hiện tại (không cần admin)
-            Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force -ErrorAction Stop
-            
-            Write-Host "  [!] ExecutionPolicy set to: Bypass (Process scope)" -ForegroundColor Green
-            return $true
+        $logPath = "$env:TEMP\winkit"
+        if (Test-Path $logPath) {
+            Get-ChildItem -Path $logPath -Filter "*.log" -File | Remove-Item -Force -ErrorAction SilentlyContinue
         }
-        
-        return $true
     }
     catch {
-        Write-Host "  [!] Failed to set ExecutionPolicy: $_" -ForegroundColor Red
-        
-        # Hướng dẫn người dùng
-        Write-Host "`n=== REQUIRED ACTION ===" -ForegroundColor Red
-        Write-Host "1. Run PowerShell AS ADMINISTRATOR" -ForegroundColor Yellow
-        Write-Host "2. Run this command:" -ForegroundColor Cyan
-        Write-Host "   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force" -ForegroundColor White
-        Write-Host "3. Then run WinKit again.`n" -ForegroundColor Yellow
-        
-        return $false
+        # Silent fail
     }
 }
 
 # ============================================
-# PHASE 1: LOAD SCREEN - CỰC NHANH
+# PHASE 1: LOAD SCREEN - HIỆN LOGO TỪ Logo.ps1
 # ============================================
 
 function Show-LoadScreen {
     Clear-Host
     
+    # Logo chính xác từ Logo.ps1 (đã được download)
     $logo = @"
               W I N K I T
----------------------------------------------------------------------------------------------------
-        Windows Optimization Toolkit  
-        Author: Minh Khai Contact: 0333090930  
+      __        ___      _  ___ _ _
+      \ \      / (_)_ __| |/ (_) | |
+       \ \ /\ / /| | '__| ' /| | | |
+        \ V  V / | | |  | . \| | | |
+         \_/\_/  |_|_|  |_|\_\_|_|_|
+
+        Windows Optimization Toolkit
+        Author: Minh Khai Contact: 0333090930
 "@
     
     # Canh giữa
@@ -82,11 +66,11 @@ function Show-LoadScreen {
     }
     
     Write-Host ""
-    Write-Host (" " * [math]::Floor(($consoleWidth - 15) / 2) + "Initializing...") -ForegroundColor Yellow
+    Write-Host (" " * [math]::Floor(($consoleWidth - 15) / 2) + "Starting WinKit...") -ForegroundColor Yellow
 }
 
 # ============================================
-# PHASE 2: DOWNLOAD HELPER - RETRY 2 LẦN
+# PHASE 2: DOWNLOAD HELPER - KHÔNG EXPORT
 # ============================================
 
 function Get-WebFile {
@@ -104,18 +88,14 @@ function Get-WebFile {
     
     for ($i = 1; $i -le $MaxRetries; $i++) {
         try {
-            # WebClient nhanh hơn Invoke-WebRequest
             $webClient = New-Object System.Net.WebClient
             $webClient.DownloadFile($Url, $Destination)
             return $true
         }
         catch {
             if ($i -eq $MaxRetries) {
-                Write-Host "  [!] Failed to download: $Url" -ForegroundColor Red
                 return $false
             }
-            
-            # Thử lại sau 0.5s
             Start-Sleep -Milliseconds 500
         }
     }
@@ -124,7 +104,7 @@ function Get-WebFile {
 }
 
 # ============================================
-# PHASE 3: BOOTSTRAP CORE - TẢI FILE
+# PHASE 3: BOOTSTRAP CORE
 # ============================================
 
 function Initialize-Bootstrap {
@@ -132,7 +112,6 @@ function Initialize-Bootstrap {
     param()
     
     try {
-        # Tạo thư mục với timestamp
         $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
         $runId = [guid]::NewGuid().ToString().Substring(0, 8)
         $tempDir = "$Script:TempBase\$timestamp`_$runId"
@@ -146,7 +125,6 @@ function Initialize-Bootstrap {
         return $tempDir
     }
     catch {
-        Write-Host "  [!] Failed to create temp directory: $_" -ForegroundColor Red
         return $null
     }
 }
@@ -161,16 +139,11 @@ function Download-RequiredFiles {
     $successCount = 0
     $totalCount = $Script:RequiredFiles.Count
     
-    Write-Host "`nDownloading files..." -ForegroundColor Yellow
+    Write-Host "`n"  # Xuống dòng dưới logo
     
     foreach ($file in $Script:RequiredFiles) {
-        $fileName = Split-Path $file -Leaf
         $url = "$Script:GitHubBase/$file"
         $destPath = Join-Path $TempDir $file.Replace("/", "\")
-        
-        # Hiển thị progress đơn giản
-        $percent = [math]::Round(($successCount / $totalCount) * 100)
-        Write-Host "`r[$percent%] $fileName" -NoNewline -ForegroundColor Gray
         
         if (Get-WebFile -Url $url -Destination $destPath) {
             $successCount++
@@ -178,16 +151,20 @@ function Download-RequiredFiles {
         else {
             return $false
         }
+        
+        # Hiển thị process chạy không che logo
+        $percent = [math]::Round(($successCount / $totalCount) * 100)
+        Write-Host "`rDownloading... $percent%" -NoNewline -ForegroundColor Yellow
     }
     
-    Write-Host "`r" + (" " * 50) -NoNewline
-    Write-Host "`rDownloaded: $successCount/$totalCount files" -ForegroundColor Green
+    Write-Host "`r" + (" " * 40) -NoNewline
+    Write-Host "`r" -NoNewline
     
     return $true
 }
 
 # ============================================
-# PHASE 4: START WINKIT LOCALLY
+# PHASE 4: START WINKIT LOCALLY - FIX EXPORT
 # ============================================
 
 function Start-LocalWinKit {
@@ -198,21 +175,22 @@ function Start-LocalWinKit {
     )
     
     try {
-        # Chuyển đến thư mục tạm
         Set-Location $TempDir
         
-        # Dot-source Loader.ps1 (KHÔNG dùng .\)
+        # Load Loader.ps1 bằng cách đọc nội dung và thực thi
         $loaderPath = Join-Path $TempDir "Loader.ps1"
         if (Test-Path $loaderPath) {
-            # Read file content và execute
             $loaderContent = Get-Content $loaderPath -Raw
-            Invoke-Expression $loaderContent
+            
+            # Thực thi Loader.ps1 trong scope hiện tại
+            $scriptBlock = [scriptblock]::Create($loaderContent)
+            . $scriptBlock
             
             # Gọi Start-WinKit
             Start-WinKit
         }
         else {
-            throw "Loader.ps1 not found in temp directory"
+            throw "Loader.ps1 not found"
         }
     }
     catch {
@@ -221,88 +199,81 @@ function Start-LocalWinKit {
 }
 
 # ============================================
-# PHASE 5: CLEANUP OLD VERSIONS
+# PHASE 5: CLEANUP
 # ============================================
 
 function Cleanup-OldVersions {
     [CmdletBinding()]
-    param(
-        [Parameter(Mandatory=$false)]
-        [int]$KeepLast = 2
-    )
+    param()
     
     try {
         if (Test-Path $Script:TempBase) {
             $oldDirs = Get-ChildItem -Path $Script:TempBase -Directory -ErrorAction SilentlyContinue | 
                        Sort-Object CreationTime -Descending | 
-                       Select-Object -Skip $KeepLast
+                       Select-Object -Skip 2
             
             foreach ($dir in $oldDirs) {
                 Remove-Item -Path $dir.FullName -Recurse -Force -ErrorAction SilentlyContinue
             }
         }
     }
-    catch {
-        # Ignore cleanup errors
-    }
+    catch {}
 }
 
 # ============================================
-# MAIN EXECUTION FLOW
+# MAIN EXECUTION FLOW - ĐƠN GIẢN HÓA
 # ============================================
 
 function Main {
-    # Hiển thị logo NGAY
+    # Xóa log cũ trước khi bắt đầu
+    Clear-OldLogs
+    
+    # Hiển thị load screen NGAY
     Show-LoadScreen
     
-    # PHASE 0: Fix ExecutionPolicy
-    Write-Host "`nChecking environment..." -ForegroundColor Yellow
-    if (-not (Initialize-ExecutionPolicy)) {
-        throw "ExecutionPolicy check failed"
-    }
-    
-    # PHASE 1: Khởi tạo bootstrap
+    # Khởi tạo bootstrap
     $tempDir = Initialize-Bootstrap
     if (-not $tempDir) {
-        throw "Failed to initialize bootstrap"
+        throw "Failed to create temp directory"
     }
     
-    Write-Host "  Temp directory: $tempDir" -ForegroundColor Gray
-    
-    # PHASE 2: Tải file
+    # Tải file
     if (-not (Download-RequiredFiles -TempDir $tempDir)) {
-        throw "Failed to download required files"
+        throw "Failed to download files"
     }
     
-    # PHASE 3: Dọn dẹp cũ
-    Cleanup-OldVersions -KeepLast 2
+    # Dọn dẹp
+    Cleanup-OldVersions
     
-    # PHASE 4: Chạy WinKit
-    Write-Host "`nStarting WinKit..." -ForegroundColor Green
-    Start-Sleep -Milliseconds 500
+    # Chạy WinKit
+    Write-Host "`nInitializing..." -ForegroundColor Green
+    Start-Sleep -Milliseconds 300
     Clear-Host
     
     Start-LocalWinKit -TempDir $tempDir
 }
 
 # ============================================
-# ERROR HANDLING
+# ERROR HANDLING - KHÔNG DÙNG ReadKey
 # ============================================
 
 trap {
-    Write-Host "`n" + ("=" * 50) -ForegroundColor Red
+    Write-Host "`n" + ("=" * 60) -ForegroundColor Red
     Write-Host "BOOTSTRAP ERROR" -ForegroundColor Red
-    Write-Host ("=" * 50) -ForegroundColor Red
+    Write-Host ("=" * 60) -ForegroundColor Red
     Write-Host "Error: $_" -ForegroundColor Yellow
     
-    Write-Host "`nTroubleshooting steps:" -ForegroundColor Cyan
-    Write-Host "1. Run PowerShell AS ADMINISTRATOR" -ForegroundColor Gray
-    Write-Host "2. Run this command:" -ForegroundColor Gray
-    Write-Host "   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser" -ForegroundColor White
-    Write-Host "3. Then try again.`n" -ForegroundColor Gray
+    Write-Host "`nTroubleshooting:" -ForegroundColor Cyan
+    Write-Host "1. Run PowerShell as Administrator" -ForegroundColor Gray
+    Write-Host "2. Run: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force" -ForegroundColor White
+    Write-Host "3. Check internet connection" -ForegroundColor Gray
+    Write-Host "4. Try again" -ForegroundColor Gray
     
-    Write-Host "Press any key to exit..." -ForegroundColor Gray
-    $null = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    Write-Host "`nType 'exit' and press Enter to close..." -ForegroundColor Gray
+    while ($true) {
+        $input = Read-Host
+        if ($input -eq 'exit') { break }
+    }
     
     exit 1
 }
@@ -311,26 +282,23 @@ trap {
 # ENTRY POINT
 # ============================================
 
-# Kiểm tra PowerShell version
+# Kiểm tra PowerShell
 if ($PSVersionTable.PSVersion.Major -lt 5) {
     Write-Host "WinKit requires PowerShell 5.1 or later" -ForegroundColor Red
     exit 1
 }
 
-# Set window size
+# Set window
 try {
     $host.UI.RawUI.WindowSize = New-Object System.Management.Automation.Host.Size(120, 40)
     $host.UI.RawUI.BufferSize = New-Object System.Management.Automation.Host.Size(120, 1000)
 }
-catch {
-    # Bỏ qua nếu không resize được
-}
+catch {}
 
-# Set window title
+# Window title
 $host.UI.RawUI.WindowTitle = "WinKit - Windows Optimization Toolkit"
 
 # Chạy
 Main
 
-# Exit clean
 exit 0
