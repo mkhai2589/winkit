@@ -8,6 +8,7 @@ $Global:WinKitLoggerConfig = @{
     IsInitialized = $false
 }
 
+
 function Initialize-Log {
     [CmdletBinding()]
     param(
@@ -25,36 +26,52 @@ function Initialize-Log {
             New-Item -ItemType Directory -Path $LogPath -Force | Out-Null
         }
         
-        # Set log file path
-        $logFile = Join-Path $LogPath "winkit.log"
+        # Tạo tên file log với timestamp và random ID
+        $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+        $randomId = [guid]::NewGuid().ToString().Substring(0, 6)
+        $logFile = Join-Path $LogPath "winkit-$timestamp-$randomId.log"
+        
         $Global:WinKitLoggerConfig.LogPath = $logFile
         $Global:WinKitLoggerConfig.IsInitialized = $true
         
-        # Tạo file log nếu chưa tồn tại
-        if (-not (Test-Path $logFile)) {
-            New-Item -ItemType File -Path $logFile -Force | Out-Null
-        }
+        # Tạo file log
+        New-Item -ItemType File -Path $logFile -Force | Out-Null
         
-        Write-Log -Level INFO -Message "Logger initialized at: $logFile" -Silent $true
+        # Write initial log entry
+        $startTime = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        $psVersion = $PSVersionTable.PSVersion
+        $os = [System.Environment]::OSVersion.VersionString
+        
+        Add-Content -Path $logFile -Value "=================================================================" -Encoding UTF8
+        Add-Content -Path $logFile -Value "WinKit Log File - $startTime" -Encoding UTF8
+        Add-Content -Path $logFile -Value "PowerShell: $psVersion | OS: $os" -Encoding UTF8
+        Add-Content -Path $logFile -Value "=================================================================`n" -Encoding UTF8
+        
+        # KHÔNG in ra console (silent mode)
         return $true
     }
     catch {
-        # Fallback
-        $Global:WinKitLoggerConfig.LogPath = "$env:TEMP\winkit_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
-        $Global:WinKitLoggerConfig.IsInitialized = $true
-        
-        # Tạo file fallback
+        # Silent fallback - try to create in temp root
         try {
-            New-Item -ItemType File -Path $Global:WinKitLoggerConfig.LogPath -Force | Out-Null
+            $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+            $logFile = "$env:TEMP\winkit-$timestamp.log"
+            
+            $Global:WinKitLoggerConfig.LogPath = $logFile
+            $Global:WinKitLoggerConfig.IsInitialized = $true
+            
+            New-Item -ItemType File -Path $logFile -Force | Out-Null
+            return $true
         }
         catch {
-            # Last resort - in memory only
+            # Ultimate fallback - memory only
+            $Global:WinKitLoggerConfig.LogPath = $null
+            $Global:WinKitLoggerConfig.IsInitialized = $true
+            return $false
         }
-        
-        Write-Log -Level ERROR -Message "Failed to initialize logger: $_" -Silent $true
-        return $false
     }
 }
+
+
 
 function Write-Log {
     [CmdletBinding()]
