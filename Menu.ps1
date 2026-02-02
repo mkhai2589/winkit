@@ -74,34 +74,26 @@ function Show-MainMenu {
                     # Create copy of features in this category
                     $categoryFeatures = @($categories[$category])
                     
-                    # Display features in 2 columns
+                    # Display features in 2 columns - ALWAYS 2 items per line
+                    # If odd number of features, last line will have empty second column
                     for ($i = 0; $i -lt $categoryFeatures.Count; $i += 2) {
-                        $line = ""
+                        $col1 = ""
+                        $col2 = ""
                         
                         # First column
                         if ($i -lt $categoryFeatures.Count) {
                             $feature1 = $categoryFeatures[$i]
-                            $dangerIcon1 = switch ($feature1.dangerLevel) {
-                                "High" { " (!)" }
-                                "Medium" { " (?)" }
-                                default { "" }
-                            }
-                            $col1 = " [$($feature1.order)]$dangerIcon1 $($feature1.title)"
-                            $line += $col1.PadRight($global:WK_COLUMN_WIDTH)
+                            $col1 = " [$($feature1.order)] $($feature1.title)"
                         }
                         
                         # Second column
                         if ($i + 1 -lt $categoryFeatures.Count) {
                             $feature2 = $categoryFeatures[$i + 1]
-                            $dangerIcon2 = switch ($feature2.dangerLevel) {
-                                "High" { " (!)" }
-                                "Medium" { " (?)" }
-                                default { "" }
-                            }
-                            $col2 = " [$($feature2.order)]$dangerIcon2 $($feature2.title)"
-                            $line += $col2
+                            $col2 = " [$($feature2.order)] $($feature2.title)"
                         }
                         
+                        # Format line with two columns
+                        $line = $col1.PadRight($global:WK_COLUMN_WIDTH) + $col2
                         Write-Padded $line -Color White
                     }
                     
@@ -109,13 +101,13 @@ function Show-MainMenu {
                 }
             }
             
-            # EXIT OPTION
+            # EXIT OPTION (single column)
             Write-Padded "------------------------------------------" -Color DarkGray
             Write-Padded " [0] Exit" -Color Gray
             Write-Padded ""  # Empty line
             
-            # FOOTER
-            Show-Footer -Status "Ready"
+            # FOOTER with improved status
+            Show-Footer -Status "READY"
             
             # USER INPUT
             if ($availableFeatures.Count -gt 0) {
@@ -188,7 +180,7 @@ function Execute-Feature([PSCustomObject]$Feature) {
         
         if (Get-Command $functionName -ErrorAction SilentlyContinue) {
             # Update footer to show running status
-            Show-Footer -Status "Running: $($Feature.title)"
+            Show-Footer -Status "RUNNING: $($Feature.title)"
             Write-Padded ""  # Empty line
             
             # Execute feature
@@ -213,10 +205,20 @@ function Execute-Feature([PSCustomObject]$Feature) {
     }
 }
 
-function Show-Footer([string]$Status = "Ready") {
+function Show-Footer([string]$Status = "READY") {
+    # Determine color based on status
+    $statusColor = switch -Wildcard ($Status) {
+        "*READY*" { "Green" }
+        "*RUNNING*" { "Yellow" }
+        "*ERROR*" { "Red" }
+        default { "Cyan" }
+    }
+    
     Write-Padded ""  # Empty line
     Write-Padded "------------------------------------------" -Color DarkGray
-    Write-Padded "[INFO] $Status | Log: $global:WK_LOG" -Color Cyan
+    Write-Padded "Status: " -Color White -NoNewLine
+    Write-Host $Status -ForegroundColor $statusColor -NoNewline
+    Write-Host " | Log: $global:WK_LOG" -ForegroundColor Gray
     Write-Padded ""  # Empty line
 }
 
