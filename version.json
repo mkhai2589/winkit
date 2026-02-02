@@ -1,5 +1,10 @@
 {
-  "version": "1.0.0",
-  "build": "2026.01.01",
-  "channel": "stable"
+    "Version": "1.0.0-alpha",
+    "BuildDate": "2026-02-03",
+    "Author": "Minh Khai",
+    "Contact": "0333090930",
+    "Repository": "https://github.com/mkhai2589/winkit",
+    "License": "MIT",
+    "MinimumPowerShell": "5.1",
+    "Description": "Windows Optimization Toolkit - Plugin-based PowerShell tool"
 }
