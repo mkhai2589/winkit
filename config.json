@@ -3,12 +3,7 @@
   "version": "1.0.0",
   "description": "Windows Optimization Toolkit",
   "ui": {
-    "categoryOrder": ["Essential", "Advanced", "Tools"],
-    "categoryColors": {
-      "Essential": "Green",
-      "Advanced": "Yellow",
-      "Tools": "Cyan"
-    }
+    "categoryOrder": ["Essential", "Advanced", "Tools"]
   },
   "features": [
     {
