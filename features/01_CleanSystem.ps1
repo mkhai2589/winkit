@@ -1,72 +1,86 @@
-function Start-CleanSystem {
-    Write-Host ""
-    Write-Padded "=== Clean System ===" -Color Cyan -IndentLevel 0
+function Start-ActivationTool {
     Write-Padded ""  # Empty line
-    Write-Padded "This feature will clean temporary files and system caches." -Color Gray
+    Write-Padded "=== Microsoft Tools ===" -Color Cyan -IndentLevel 0
     Write-Padded ""  # Empty line
-    
-    Write-Padded "Operations to be performed:" -Color Yellow
-    Write-Padded "  - Temporary files" -Color Gray
-    Write-Padded "  - Windows Update cache" -Color Gray
-    Write-Padded "  - Prefetch files" -Color Gray
-    Write-Padded "  - System logs (optional)" -Color Gray
+    Write-Padded "Windows and Office activation utilities" -Color Gray
     Write-Padded ""  # Empty line
     
-    if (-not (Ask-WKConfirm "Do you want to proceed?")) {
+    Write-Padded "Available operations:" -Color Yellow
+    Write-Padded ""  # Empty line
+    
+    Write-Padded "  [1] Check Windows activation status" -Color Gray
+    Write-Padded "  [2] Activate Windows" -Color Gray
+    Write-Padded "  [3] Check Office activation status" -Color Gray
+    Write-Padded "  [4] Activate Office" -Color Gray
+    Write-Padded "  [5] Change Windows edition" -Color Gray
+    Write-Padded ""  # Empty line
+    
+    Write-Padded "Select an option [1-5] or press Enter to cancel: " -NoNewline -Color Yellow
+    $choice = Read-Host
+    
+    if ([string]::IsNullOrEmpty($choice)) {
         Write-Padded "Operation cancelled." -Color Yellow
         return
     }
     
-    Write-Padded ""  # Empty line
-    Write-WKInfo "Cleaning temporary files..."
-    try {
-        Remove-Item "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
-        Remove-Item "C:\Windows\Temp\*" -Recurse -Force -ErrorAction SilentlyContinue
-        Write-WKSuccess "Temporary files cleaned"
-    }
-    catch {
-        Write-WKWarn "Some temp files could not be removed"
-    }
-    
-    Write-Padded ""  # Empty line
-    Write-WKInfo "Cleaning Windows Update cache..."
-    try {
-        Stop-Service wuauserv -Force -ErrorAction SilentlyContinue
-        Remove-Item "C:\Windows\SoftwareDistribution\Download\*" -Recurse -Force -ErrorAction SilentlyContinue
-        Start-Service wuauserv -ErrorAction SilentlyContinue
-        Write-WKSuccess "Windows Update cache cleaned"
-    }
-    catch {
-        Write-WKWarn "Windows Update cache cleaning failed"
-    }
-    
-    Write-Padded ""  # Empty line
-    Write-WKInfo "Cleaning prefetch files..."
-    try {
-        Remove-Item "C:\Windows\Prefetch\*" -Force -ErrorAction SilentlyContinue
-        Write-WKSuccess "Prefetch files cleaned"
-    }
-    catch {
-        Write-WKWarn "Prefetch cleaning failed"
-    }
-    
-    Write-Padded ""  # Empty line
-    if (Ask-WKConfirm "Clean system logs? (This may require administrative privileges)" -Dangerous) {
-        try {
-            wevtutil clear-log Application /quiet
-            wevtutil clear-log System /quiet
-            Write-WKSuccess "System logs cleared"
+    switch ($choice) {
+        "1" {
+            Write-Padded ""  # Empty line
+            Write-WKInfo "Checking Windows activation status..."
+            try {
+                $status = (Get-CimInstance SoftwareLicensingProduct -Filter "Name like 'Windows%'" | Where-Object PartialProductKey).LicenseStatus
+                if ($status -eq 1) {
+                    Write-WKSuccess "Windows is activated"
+                }
+                else {
+                    Write-WKWarn "Windows is not activated"
+                }
+            }
+            catch {
+                Write-WKError "Failed to check activation status"
+            }
         }
-        catch {
-            Write-WKWarn "Log clearing requires administrator privileges"
+        "2" {
+            Write-Padded ""  # Empty line
+            if (Ask-WKConfirm "This will attempt to activate Windows. Continue?" -Dangerous) {
+                Write-WKInfo "Attempting to activate Windows..."
+                try {
+                    # Placeholder for actual activation logic
+                    Write-WKSuccess "Windows activation attempted"
+                    Write-WKInfo "Note: This feature requires proper licensing and activation tools"
+                }
+                catch {
+                    Write-WKError "Activation failed"
+                }
+            }
+        }
+        "3" {
+            Write-Padded ""  # Empty line
+            Write-WKInfo "Checking Office activation status..."
+            Write-WKInfo "This feature is under development"
+        }
+        "4" {
+            Write-Padded ""  # Empty line
+            if (Ask-WKConfirm "This will attempt to activate Office. Continue?" -Dangerous) {
+                Write-WKInfo "Attempting to activate Office..."
+                Write-WKInfo "This feature is under development"
+            }
+        }
+        "5" {
+            Write-Padded ""  # Empty line
+            if (Ask-WKConfirm "This will change Windows edition. Continue?" -Dangerous) {
+                Write-WKInfo "Changing Windows edition..."
+                Write-WKInfo "This feature is under development"
+            }
+        }
+        default {
+            Write-Padded ""  # Empty line
+            Write-WKWarn "Invalid option selected"
         }
     }
     
     Write-Padded ""  # Empty line
-    Write-Padded "=== Summary ===" -Color Green -IndentLevel 0
-    Write-Padded ""  # Empty line
-    Write-WKSuccess "System cleanup completed successfully!"
-    Write-WKInfo "Note: Some changes may require restart to take full effect."
+    Write-WKInfo "Microsoft Tools operation completed"
     
-    Write-Log -Message "CleanSystem feature executed" -Level "INFO"
+    Write-Log -Message "ActivationTool feature executed" -Level "INFO"
 }
