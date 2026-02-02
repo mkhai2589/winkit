@@ -31,7 +31,7 @@ $FILES = @(
     "core/Security.ps1",
     "core/Utils.ps1",
     "core/Interface.ps1",
-    "ui/Logo.ps1",
+    "ui/logo.ps1",
     "ui/Theme.ps1",
     "ui/UI.ps1",
     "features/01_CleanSystem.ps1",
