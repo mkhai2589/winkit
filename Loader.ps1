@@ -1,9 +1,11 @@
 function Start-WinKit {
     try {
-        # SET GLOBAL PATHS FIRST
+        # SET GLOBAL PATHS AND SETTINGS FIRST
         $global:WK_ROOT = $PSScriptRoot
         $global:WK_FEATURES = Join-Path $WK_ROOT "features"
         $global:WK_LOG = Join-Path $env:TEMP "winkit.log"
+        $global:WK_PADDING = "  "  # 2 spaces for left padding
+        $global:WK_COLUMN_WIDTH = 35  # Width for menu columns
         
         # CLEAR OLD LOG ON NEW START
         if (Test-Path $global:WK_LOG) {
@@ -16,8 +18,9 @@ function Start-WinKit {
         if (Test-Path $loggerPath) {
             . $loggerPath
             Write-Log -Message "WinKit starting from: $WK_ROOT" -Level "INFO"
+            Write-Log -Message "Global padding: '$global:WK_PADDING'" -Level "DEBUG"
         } else {
-            Write-Host "WARNING: Logger.ps1 not found" -ForegroundColor Yellow
+            Write-Host "  WARNING: Logger.ps1 not found" -ForegroundColor Yellow
         }
         
         # 2. Load remaining core modules
@@ -32,7 +35,7 @@ function Start-WinKit {
             if (Test-Path $modulePath) {
                 . $modulePath
             } else {
-                Write-Host "WARNING: $module not found" -ForegroundColor Yellow
+                Write-Host "  WARNING: $module not found" -ForegroundColor Yellow
             }
         }
         
@@ -48,7 +51,7 @@ function Start-WinKit {
             if (Test-Path $modulePath) {
                 . $modulePath
             } else {
-                Write-Host "WARNING: $module not found" -ForegroundColor Yellow
+                Write-Host "  WARNING: $module not found" -ForegroundColor Yellow
             }
         }
         
@@ -64,26 +67,27 @@ function Start-WinKit {
         if (Get-Command Test-WKAdmin -ErrorAction SilentlyContinue) {
             Test-WKAdmin
         } else {
-            Write-Host "WARNING: Test-WKAdmin function not found" -ForegroundColor Yellow
+            Write-Host "  WARNING: Test-WKAdmin function not found" -ForegroundColor Yellow
         }
         
         # Log successful loading
         if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
             Write-Log -Message "All modules loaded successfully" -Level "INFO"
+            Write-Log -Message "Padding: '$global:WK_PADDING', Column width: $global:WK_COLUMN_WIDTH" -Level "DEBUG"
         }
         
         # START USER INTERFACE
         if (Get-Command Initialize-UI -ErrorAction SilentlyContinue) {
             Initialize-UI
         } else {
-            Write-Host "ERROR: Initialize-UI function not found" -ForegroundColor Red
+            Write-Host "  ERROR: Initialize-UI function not found" -ForegroundColor Red
             throw "UI initialization failed"
         }
         
         if (Get-Command Show-MainMenu -ErrorAction SilentlyContinue) {
             Show-MainMenu
         } else {
-            Write-Host "ERROR: Show-MainMenu function not found" -ForegroundColor Red
+            Write-Host "  ERROR: Show-MainMenu function not found" -ForegroundColor Red
             throw "Main menu not available"
         }
         
@@ -98,8 +102,10 @@ function Start-WinKit {
         catch {}
         
         # Show user-friendly error
-        Write-Host "`nFATAL ERROR: $($_.Exception.Message)" -ForegroundColor Red
-        Write-Host "`nPress Enter to exit..." -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "  FATAL ERROR: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host ""
+        Write-Host "  Press Enter to exit..." -ForegroundColor Yellow
         $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
         exit 1
     }
