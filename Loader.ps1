@@ -18,7 +18,6 @@ function Start-WinKit {
         if (Test-Path $loggerPath) {
             . $loggerPath
             Write-Log -Message "WinKit starting from: $WK_ROOT" -Level "INFO"
-            Write-Log -Message "Global padding: '$global:WK_PADDING'" -Level "DEBUG"
         } else {
             Write-Host "  WARNING: Logger.ps1 not found" -ForegroundColor Yellow
         }
@@ -73,7 +72,6 @@ function Start-WinKit {
         # Log successful loading
         if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
             Write-Log -Message "All modules loaded successfully" -Level "INFO"
-            Write-Log -Message "Padding: '$global:WK_PADDING', Column width: $global:WK_COLUMN_WIDTH" -Level "DEBUG"
         }
         
         # START USER INTERFACE
