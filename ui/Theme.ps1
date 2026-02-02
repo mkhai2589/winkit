@@ -7,6 +7,7 @@ $global:WK_THEME = @{
     Warning = "Yellow"
     Error = "Red"
     Highlight = "Magenta"
+    Info = "Blue"
     
     # UI elements
     Header = "Cyan"
@@ -29,4 +30,5 @@ $global:WK_THEME = @{
     Offline = "Yellow"
     Enabled = "Green"
     Disabled = "Red"
+    Default = "Gray"
 }
