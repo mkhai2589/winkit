@@ -11,35 +11,96 @@ function Start-WinKit {
         }
         
         # LOAD CORE MODULES IN CORRECT ORDER
-        . "$WK_ROOT\core\Logger.ps1"
-        Write-Log -Message "WinKit starting from: $WK_ROOT" -Level "INFO"
+        # 1. Logger first (so Write-Log is available immediately)
+        $loggerPath = Join-Path $WK_ROOT "core\Logger.ps1"
+        if (Test-Path $loggerPath) {
+            . $loggerPath
+            Write-Log -Message "WinKit starting from: $WK_ROOT" -Level "INFO"
+        } else {
+            Write-Host "WARNING: Logger.ps1 not found" -ForegroundColor Yellow
+        }
         
-        . "$WK_ROOT\core\Security.ps1"
-        . "$WK_ROOT\core\Utils.ps1"
-        . "$WK_ROOT\core\Interface.ps1"
+        # 2. Load remaining core modules
+        $coreModules = @(
+            "core\Security.ps1",
+            "core\Utils.ps1",
+            "core\Interface.ps1"
+        )
         
-        # LOAD UI MODULES - logo trước, theme sau, UI cuối
-        . "$WK_ROOT\ui\logo.ps1"
-        . "$WK_ROOT\ui\Theme.ps1"
-        . "$WK_ROOT\ui\UI.ps1"
+        foreach ($module in $coreModules) {
+            $modulePath = Join-Path $WK_ROOT $module
+            if (Test-Path $modulePath) {
+                . $modulePath
+            } else {
+                Write-Host "WARNING: $module not found" -ForegroundColor Yellow
+            }
+        }
         
-        # LOAD MENU
-        . "$WK_ROOT\Menu.ps1"
+        # 3. Load UI modules
+        $uiModules = @(
+            "ui\logo.ps1",
+            "ui\Theme.ps1",
+            "ui\UI.ps1"
+        )
+        
+        foreach ($module in $uiModules) {
+            $modulePath = Join-Path $WK_ROOT $module
+            if (Test-Path $modulePath) {
+                . $modulePath
+            } else {
+                Write-Host "WARNING: $module not found" -ForegroundColor Yellow
+            }
+        }
+        
+        # 4. Load Menu module
+        $menuPath = Join-Path $WK_ROOT "Menu.ps1"
+        if (Test-Path $menuPath) {
+            . $menuPath
+        } else {
+            throw "Menu.ps1 not found at: $menuPath"
+        }
         
         # VALIDATE ADMINISTRATOR PRIVILEGES
-        Test-WKAdmin
+        if (Get-Command Test-WKAdmin -ErrorAction SilentlyContinue) {
+            Test-WKAdmin
+        } else {
+            Write-Host "WARNING: Test-WKAdmin function not found" -ForegroundColor Yellow
+        }
         
-        Write-Log -Message "All modules loaded successfully" -Level "INFO"
+        # Log successful loading
+        if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+            Write-Log -Message "All modules loaded successfully" -Level "INFO"
+        }
         
         # START USER INTERFACE
-        Initialize-UI
-        Show-MainMenu
+        if (Get-Command Initialize-UI -ErrorAction SilentlyContinue) {
+            Initialize-UI
+        } else {
+            Write-Host "ERROR: Initialize-UI function not found" -ForegroundColor Red
+            throw "UI initialization failed"
+        }
+        
+        if (Get-Command Show-MainMenu -ErrorAction SilentlyContinue) {
+            Show-MainMenu
+        } else {
+            Write-Host "ERROR: Show-MainMenu function not found" -ForegroundColor Red
+            throw "Main menu not available"
+        }
         
     }
     catch {
+        # Try to log the error if logger is available
+        try { 
+            if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+                Write-Log -Message "Fatal startup error: $_" -Level "ERROR" 
+            }
+        } 
+        catch {}
+        
+        # Show user-friendly error
         Write-Host "`nFATAL ERROR: $($_.Exception.Message)" -ForegroundColor Red
         Write-Host "`nPress Enter to exit..." -ForegroundColor Yellow
-        $null = Read-Host
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
         exit 1
     }
 }
