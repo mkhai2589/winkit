@@ -1,4 +1,4 @@
-# run.ps1 - WinKit Bootstrap Downloader với ExecutionPolicy fix
+# run.ps1 - WinKit Bootstrap Downloader
 # Single Entry Point: irm https://raw.githubusercontent.com/mkhai2589/winkit/main/run.ps1 | iex
 
 # ============================================
@@ -12,7 +12,9 @@ $Script:RequiredFiles = @(
     "core/FeatureRegistry.ps1", "core/Interface.ps1",
     "ui/Theme.ps1", "ui/Logo.ps1", "ui/UI.ps1",
     "Loader.ps1", "Menu.ps1",
-    "config.json", "version.json"
+    "config.json", "version.json",
+    "assets/ascii.txt",
+    "features/01_CleanSystem.ps1"
 )
 
 # ============================================
@@ -174,18 +176,6 @@ function Download-RequiredFiles {
             $successCount++
         }
         else {
-            # Thử với case khác (Logo.ps1 vs logo.ps1)
-            if ($file -match "Logo\.ps1$") {
-                $altFile = $file -replace "Logo\.ps1$", "logo.ps1"
-                $altUrl = "$Script:GitHubBase/$altFile"
-                Write-Host "`n  [!] Trying alternative case: $altFile" -ForegroundColor Yellow
-                
-                if (Get-WebFile -Url $altUrl -Destination $destPath) {
-                    $successCount++
-                    continue
-                }
-            }
-            
             return $false
         }
     }
@@ -330,6 +320,7 @@ if ($PSVersionTable.PSVersion.Major -lt 5) {
 # Set window size
 try {
     $host.UI.RawUI.WindowSize = New-Object System.Management.Automation.Host.Size(120, 40)
+    $host.UI.RawUI.BufferSize = New-Object System.Management.Automation.Host.Size(120, 1000)
 }
 catch {
     # Bỏ qua nếu không resize được
