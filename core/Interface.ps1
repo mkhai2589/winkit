@@ -147,15 +147,67 @@ function Ask-WKConfirm([string]$Message, [switch]$Dangerous) {
 }
 
 # ==================== FEATURE REGISTRY SYSTEM ====================
-# KHÔNG THÊM FILE MỚI - Đặt ngay trong Interface.ps1
+# Hệ thống tự đăng ký kết hợp với config.json
 # ================================================================
 
 $global:WK_FEATURES_REGISTRY = @()
 $global:WK_FEATURES_BY_ID = @{}
-$global:WK_CATEGORIES = @{
-    "Essential" = @()
-    "Advanced" = @()
-    "Tools" = @()
+$global:WK_CATEGORIES = @{}
+$global:WK_CONFIG = $null
+
+function Register-FeatureFromConfig {
+    param([PSCustomObject]$Feature)
+    
+    # Kiểm tra xem feature đã tồn tại chưa (từ self-registration)
+    if ($global:WK_FEATURES_BY_ID.ContainsKey($Feature.id)) {
+        Write-Log -Message "Feature already self-registered: $($Feature.id)" -Level "DEBUG"
+        return
+    }
+    
+    # Tạo scriptblock để execute feature
+    $scriptBlock = {
+        param($FeatureId)
+        $featureFile = $global:WK_FEATURES_BY_ID[$FeatureId].FileName
+        $featurePath = Join-Path $global:WK_FEATURES $featureFile
+        
+        if (Test-Path $featurePath) {
+            . $featurePath
+            $functionName = "Start-$FeatureId"
+            if (Get-Command $functionName -ErrorAction SilentlyContinue) {
+                & $functionName
+            } else {
+                throw "Feature function '$functionName' not found in $featureFile"
+            }
+        } else {
+            throw "Feature file not found: $featurePath"
+        }
+    }
+    
+    # Tạo feature object
+    $featureObj = [PSCustomObject]@{
+        Id = $Feature.id
+        Title = $Feature.title
+        Description = $Feature.description
+        Category = $Feature.category
+        Order = $Feature.order
+        FileName = $Feature.file
+        ExecuteAction = $scriptBlock
+        RequireAdmin = $Feature.requireAdmin
+        RegisteredAt = (Get-Date)
+        Source = "Config"
+    }
+    
+    # Register feature
+    $global:WK_FEATURES_REGISTRY += $featureObj
+    $global:WK_FEATURES_BY_ID[$Feature.id] = $featureObj
+    
+    # Add to category
+    if (-not $global:WK_CATEGORIES.ContainsKey($Feature.category)) {
+        $global:WK_CATEGORIES[$Feature.category] = @()
+    }
+    $global:WK_CATEGORIES[$Feature.category] += $featureObj
+    
+    Write-Log -Message "Feature registered from config: $($Feature.id) ($($Feature.title))" -Level "DEBUG"
 }
 
 function Register-Feature {
@@ -186,22 +238,33 @@ function Register-Feature {
         [bool]$RequireAdmin = $true
     )
     
-    # Validate unique ID and Order
-    $existingById = $global:WK_FEATURES_REGISTRY | Where-Object { $_.Id -eq $Id }
-    $existingByOrder = $global:WK_FEATURES_REGISTRY | Where-Object { $_.Order -eq $Order }
-    
-    if ($existingById) {
-        Write-WKWarn "Feature with ID '$Id' already registered. Skipping..."
+    # Kiểm tra xem feature đã tồn tại từ config chưa
+    if ($global:WK_FEATURES_BY_ID.ContainsKey($Id)) {
+        Write-Log -Message "Feature already registered from config: $Id" -Level "DEBUG"
+        
+        # Cập nhật ExecuteAction nếu feature từ config
+        $existing = $global:WK_FEATURES_BY_ID[$Id]
+        if ($existing.Source -eq "Config") {
+            $existing.ExecuteAction = $ExecuteAction
+            $existing.Source = "Hybrid"  # Đánh dấu là kết hợp
+            Write-Log -Message "Updated ExecuteAction for feature: $Id" -Level "DEBUG"
+        }
         return
     }
     
+    # Kiểm tra trùng Order
+    $existingByOrder = $global:WK_FEATURES_REGISTRY | Where-Object { $_.Order -eq $Order }
     if ($existingByOrder) {
-        Write-WKWarn "Feature with Order '$Order' already registered: $($existingByOrder.Title). Assigning next available order..."
-        # Find next available order
-        $maxOrder = ($global:WK_FEATURES_REGISTRY | Measure-Object -Property Order -Maximum).Maximum
+        Write-WKWarn "Feature with Order '$Order' already registered: $($existingByOrder.Title). Using next available order..."
+        
+        # Tìm Order tiếp theo
+        $maxOrder = if ($global:WK_FEATURES_REGISTRY.Count -gt 0) {
+            ($global:WK_FEATURES_REGISTRY | Measure-Object -Property Order -Maximum).Maximum
+        } else { 0 }
         $Order = $maxOrder + 1
     }
     
+    # Tạo feature object
     $feature = [PSCustomObject]@{
         Id = $Id
         Title = $Title
@@ -212,6 +275,7 @@ function Register-Feature {
         ExecuteAction = $ExecuteAction
         RequireAdmin = $RequireAdmin
         RegisteredAt = (Get-Date)
+        Source = "SelfRegister"
     }
     
     # Register feature
@@ -224,17 +288,7 @@ function Register-Feature {
     }
     $global:WK_CATEGORIES[$Category] += $feature
     
-    # Sort features in each category by Order
-    foreach ($cat in $global:WK_CATEGORIES.Keys) {
-        $global:WK_CATEGORIES[$cat] = @($global:WK_CATEGORIES[$cat] | Sort-Object Order)
-    }
-    
-    # Sort global registry
-    $global:WK_FEATURES_REGISTRY = @($global:WK_FEATURES_REGISTRY | Sort-Object Order)
-    
-    if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
-        Write-Log -Message "Feature registered: $Id ($Title) as Order $Order in '$Category'" -Level "DEBUG"
-    }
+    Write-Log -Message "Feature self-registered: $Id ($Title) as Order $Order in '$Category'" -Level "DEBUG"
 }
 
 function Get-FeatureByOrder([int]$Order) {
@@ -249,6 +303,7 @@ function Get-FeaturesByCategory([string]$Category) {
 }
 
 function Get-AllFeatures {
+    # Sắp xếp và trả về tất cả features
     return $global:WK_FEATURES_REGISTRY | Sort-Object Order
 }
 
@@ -268,5 +323,15 @@ function Invoke-Feature([string]$FeatureId) {
     }
     
     # Execute the feature
-    & $feature.ExecuteAction
+    & $feature.ExecuteAction $FeatureId
+}
+
+function Sort-FeaturesByConfigOrder {
+    # Sắp xếp features trong mỗi category theo Order
+    foreach ($category in $global:WK_CATEGORIES.Keys) {
+        $global:WK_CATEGORIES[$category] = @($global:WK_CATEGORIES[$category] | Sort-Object Order)
+    }
+    
+    # Sắp xếp registry
+    $global:WK_FEATURES_REGISTRY = @($global:WK_FEATURES_REGISTRY | Sort-Object Order)
 }
