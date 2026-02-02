@@ -1,7 +1,6 @@
-# ui/Logo.ps1 - Updated to read from assets/ascii.txt
+# ui/Logo.ps1 - ASCII Logo Renderer
 
-$Global:WinKitLogoData = @{
-    default = @"
+$Global:WinKitLogo = @"
               W I N K I T
       __        ___      _  ___ _ _
       \ \      / (_)_ __| |/ (_) | |
@@ -12,49 +11,22 @@ $Global:WinKitLogoData = @{
         Windows Optimization Toolkit
         Author: Minh Khai Contact: 0333090930
 "@
-}
-
 
 function Get-Logo {
     [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $false)]
-        [string]$Style = 'default'
-    )
+    param()
     
-    # Ưu tiên đọc từ assets/ascii.txt
-    $assetsPath = "assets\ascii.txt"
-    if (Test-Path $assetsPath) {
-        try {
-            $logoContent = Get-Content $assetsPath -Raw -ErrorAction Stop
-            if (-not [string]::IsNullOrWhiteSpace($logoContent)) {
-                return $logoContent
-            }
-        }
-        catch {
-            Write-Log -Level WARN -Message "Failed to read logo from assets: $_" -Silent $true
-        }
-    }
-    
-    # Fallback to built-in
-    if ($Global:WinKitLogoData.ContainsKey($Style)) {
-        return $Global:WinKitLogoData[$Style]
-    }
-    
-    return $Global:WinKitLogoData['default']
+    return $Global:WinKitLogo
 }
 
 function Show-Logo {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $false)]
-        [string]$Style = 'default',
-        
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory=$false)]
         [switch]$Centered
     )
     
-    $logo = Get-Logo -Style $Style
+    $logo = Get-Logo
     $logoLines = $logo -split "`n"
     
     foreach ($line in $logoLines) {
@@ -66,6 +38,6 @@ function Show-Logo {
             }
         }
         
-        Write-Colored $line -Style Header
+        Write-Host $line -ForegroundColor Cyan
     }
 }
