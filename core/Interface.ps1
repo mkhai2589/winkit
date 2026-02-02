@@ -145,3 +145,128 @@ function Ask-WKConfirm([string]$Message, [switch]$Dangerous) {
         return $input -in @('y', 'Y', 'yes', 'YES')
     }
 }
+
+# ==================== FEATURE REGISTRY SYSTEM ====================
+# KHÔNG THÊM FILE MỚI - Đặt ngay trong Interface.ps1
+# ================================================================
+
+$global:WK_FEATURES_REGISTRY = @()
+$global:WK_FEATURES_BY_ID = @{}
+$global:WK_CATEGORIES = @{
+    "Essential" = @()
+    "Advanced" = @()
+    "Tools" = @()
+}
+
+function Register-Feature {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Id,
+        
+        [Parameter(Mandatory=$true)]
+        [string]$Title,
+        
+        [Parameter(Mandatory=$false)]
+        [string]$Description = "",
+        
+        [Parameter(Mandatory=$true)]
+        [ValidateSet("Essential", "Advanced", "Tools")]
+        [string]$Category,
+        
+        [Parameter(Mandatory=$true)]
+        [int]$Order,
+        
+        [Parameter(Mandatory=$true)]
+        [string]$FileName,
+        
+        [Parameter(Mandatory=$true)]
+        [scriptblock]$ExecuteAction,
+        
+        [Parameter(Mandatory=$false)]
+        [bool]$RequireAdmin = $true
+    )
+    
+    # Validate unique ID and Order
+    $existingById = $global:WK_FEATURES_REGISTRY | Where-Object { $_.Id -eq $Id }
+    $existingByOrder = $global:WK_FEATURES_REGISTRY | Where-Object { $_.Order -eq $Order }
+    
+    if ($existingById) {
+        Write-WKWarn "Feature with ID '$Id' already registered. Skipping..."
+        return
+    }
+    
+    if ($existingByOrder) {
+        Write-WKWarn "Feature with Order '$Order' already registered: $($existingByOrder.Title). Assigning next available order..."
+        # Find next available order
+        $maxOrder = ($global:WK_FEATURES_REGISTRY | Measure-Object -Property Order -Maximum).Maximum
+        $Order = $maxOrder + 1
+    }
+    
+    $feature = [PSCustomObject]@{
+        Id = $Id
+        Title = $Title
+        Description = $Description
+        Category = $Category
+        Order = $Order
+        FileName = $FileName
+        ExecuteAction = $ExecuteAction
+        RequireAdmin = $RequireAdmin
+        RegisteredAt = (Get-Date)
+    }
+    
+    # Register feature
+    $global:WK_FEATURES_REGISTRY += $feature
+    $global:WK_FEATURES_BY_ID[$Id] = $feature
+    
+    # Add to category
+    if (-not $global:WK_CATEGORIES.ContainsKey($Category)) {
+        $global:WK_CATEGORIES[$Category] = @()
+    }
+    $global:WK_CATEGORIES[$Category] += $feature
+    
+    # Sort features in each category by Order
+    foreach ($cat in $global:WK_CATEGORIES.Keys) {
+        $global:WK_CATEGORIES[$cat] = @($global:WK_CATEGORIES[$cat] | Sort-Object Order)
+    }
+    
+    # Sort global registry
+    $global:WK_FEATURES_REGISTRY = @($global:WK_FEATURES_REGISTRY | Sort-Object Order)
+    
+    if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+        Write-Log -Message "Feature registered: $Id ($Title) as Order $Order in '$Category'" -Level "DEBUG"
+    }
+}
+
+function Get-FeatureByOrder([int]$Order) {
+    return $global:WK_FEATURES_REGISTRY | Where-Object { $_.Order -eq $Order } | Select-Object -First 1
+}
+
+function Get-FeaturesByCategory([string]$Category) {
+    if ($global:WK_CATEGORIES.ContainsKey($Category)) {
+        return $global:WK_CATEGORIES[$Category] | Sort-Object Order
+    }
+    return @()
+}
+
+function Get-AllFeatures {
+    return $global:WK_FEATURES_REGISTRY | Sort-Object Order
+}
+
+function Invoke-Feature([string]$FeatureId) {
+    if (-not $global:WK_FEATURES_BY_ID.ContainsKey($FeatureId)) {
+        throw "Feature '$FeatureId' not found in registry"
+    }
+    
+    $feature = $global:WK_FEATURES_BY_ID[$FeatureId]
+    
+    # Check admin requirement
+    if ($feature.RequireAdmin) {
+        $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+        if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+            throw "This feature requires Administrator privileges"
+        }
+    }
+    
+    # Execute the feature
+    & $feature.ExecuteAction
+}
