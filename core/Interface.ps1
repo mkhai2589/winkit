@@ -1,7 +1,11 @@
 function Get-WKSystemInfo {
     try {
         # OS Info
-        $os = Get-CimInstance Win32_OperatingSystem
+        $os = Get-CimInstance Win32_OperatingSystem -ErrorAction SilentlyContinue
+        if (-not $os) {
+            throw "Cannot retrieve OS information"
+        }
+        
         $osName = $os.Caption
         $osBuild = $os.BuildNumber
         $osArch = if ([System.Environment]::Is64BitOperatingSystem) { "64-bit" } else { "32-bit" }
@@ -18,41 +22,59 @@ function Get-WKSystemInfo {
         $admin = if ($currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { "YES" } else { "NO" }
         
         # Network status
-        $online = Test-Connection 8.8.8.8 -Count 1 -Quiet -ErrorAction SilentlyContinue
+        $online = $false
+        try {
+            $online = Test-Connection 8.8.8.8 -Count 1 -Quiet -ErrorAction SilentlyContinue
+        } catch {}
         $mode = if ($online) { "Online" } else { "Offline" }
         
         # Time Zone with location
-        $tz = Get-TimeZone
-        $timeZone = "$($tz.Id) (UTC$($tz.BaseUtcOffset.ToString().Substring(0,6)))"
+        $timeZone = "Unknown"
+        try {
+            $tz = Get-TimeZone -ErrorAction SilentlyContinue
+            if ($tz) {
+                $timeZone = "$($tz.Id) (UTC$($tz.BaseUtcOffset.ToString().Substring(0,6)))"
+            }
+        } catch {}
         
         # TPM check
         $tpmStatus = "NO"
         try {
             $tpm = Get-Tpm -ErrorAction SilentlyContinue
-            if ($tpm -and $tpm.TpmPresent) { $tpmStatus = "YES" }
+            if ($tpm -and $tpm.TpmPresent) { 
+                $tpmStatus = "YES" 
+            }
         } catch {
             try {
                 $tpm = Get-WmiObject -Class Win32_Tpm -Namespace "root\cimv2\security\microsofttpm" -ErrorAction SilentlyContinue
-                if ($tpm -and $tpm.IsEnabled_InitialValue) { $tpmStatus = "YES" }
+                if ($tpm -and $tpm.IsEnabled_InitialValue) { 
+                    $tpmStatus = "YES" 
+                }
             } catch {
                 $tpmStatus = "NO"
             }
         }
         
         # Disk info - compact display
-        $disks = Get-PSDrive -PSProvider FileSystem | Where-Object Root | ForEach-Object {
-            $freeGB = [math]::Round($_.Free / 1GB, 1)
-            $usedGB = [math]::Round($_.Used / 1GB, 1)
-            $totalGB = $freeGB + $usedGB
-            $percentage = if ($totalGB -gt 0) { [math]::Round(($usedGB / $totalGB) * 100) } else { 0 }
-            
-            @{
-                Name = $_.Name
-                FreeGB = $freeGB
-                UsedGB = $usedGB
-                TotalGB = $totalGB
-                Percentage = $percentage
+        $disks = @()
+        try {
+            $diskDrives = Get-PSDrive -PSProvider FileSystem | Where-Object { $_.Root -and $_.Used -ne $null -and $_.Free -ne $null }
+            foreach ($drive in $diskDrives) {
+                $freeGB = [math]::Round($drive.Free / 1GB, 1)
+                $usedGB = [math]::Round($drive.Used / 1GB, 1)
+                $totalGB = $freeGB + $usedGB
+                $percentage = if ($totalGB -gt 0) { [math]::Round(($usedGB / $totalGB) * 100) } else { 0 }
+                
+                $disks += @{
+                    Name = $drive.Name
+                    FreeGB = $freeGB
+                    UsedGB = $usedGB
+                    TotalGB = $totalGB
+                    Percentage = $percentage
+                }
             }
+        } catch {
+            # Continue without disk info
         }
         
         return @{
