@@ -1,34 +1,22 @@
 $global:WK_THEME = @{
-    # Base colors
-    Primary = "White"
-    Secondary = "Gray"
-    Accent = "Cyan"
-    Success = "Green"
-    Warning = "Yellow"
-    Error = "Red"
-    Highlight = "Magenta"
-    Info = "Blue"
+    # DESIGN SYSTEM - FIXED COLORS ONLY
+    Header = "Cyan"           # Logo, borders
+    SectionTitle = "Green"    # [ Essential ], [ Advanced ], [ Tools ]
+    MenuItem = "White"        # Menu options
+    Status = "Yellow"         # Prompts, status messages
+    Error = "Red"             # Error messages
+    Info = "Gray"             # Descriptive text, system info
+    Success = "Green"         # Success messages
+    Warning = "Yellow"        # Warning messages
+    Border = "DarkGray"       # Separators, borders
     
-    # UI elements
-    Header = "Cyan"
-    Title = "White"
-    MenuItem = "White"
-    Border = "DarkGray"
+    # Status colors
+    Ready = "Green"
+    Running = "Yellow"
+    ErrorStatus = "Red"
     
-    # Feature categories
+    # Category colors
     Essential = "Green"
     Advanced = "Yellow"
     Tools = "Cyan"
-    
-    # Danger levels
-    Low = "Green"
-    Medium = "Yellow"
-    High = "Red"
-    
-    # Status colors
-    Online = "Green"
-    Offline = "Yellow"
-    Enabled = "Green"
-    Disabled = "Red"
-    Default = "Gray"
 }
