@@ -153,15 +153,3 @@ function Get-FeatureCategories {
         Sort-Object
 }
 
-# Export module functions
-$ExportFunctions = @(
-    'Register-Feature',
-    'Get-AllFeatures',
-    'Get-FeaturesByCategory',
-    'Get-FeatureById',
-    'Invoke-Feature',
-    'Clear-FeatureRegistry',
-    'Get-FeatureCategories'
-)
-
-Export-ModuleMember -Function $ExportFunctions
