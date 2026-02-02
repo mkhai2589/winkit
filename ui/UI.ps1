@@ -61,11 +61,14 @@ function Show-SystemInfoBar {
             $diskLines = @()
             $currentLine = ""
             
-            foreach ($disk in $sysInfo.Disks) {
+            # Make a copy of the disks array to avoid collection modification
+            $disksCopy = @($sysInfo.Disks)
+            
+            foreach ($disk in $disksCopy) {
                 $color = if ($disk.Percentage -gt 90) { "Red" } elseif ($disk.Percentage -gt 75) { "Yellow" } else { "Green" }
                 $diskText = "  $($disk.Name): $($disk.FreeGB)GB free ($($disk.Percentage)% used)"
                 
-                if ($currentLine.Length + $diskText.Length -lt 60 -and $sysInfo.Disks.IndexOf($disk) -ne $sysInfo.Disks.Count - 1) {
+                if ($currentLine.Length + $diskText.Length -lt 60 -and $disksCopy.IndexOf($disk) -ne $disksCopy.Count - 1) {
                     $currentLine += $diskText + " | "
                 }
                 else {
@@ -105,8 +108,16 @@ function Write-Padded {
     )
     
     $indent = $global:WK_PADDING * $IndentLevel
-    Write-Host "$indent$Text" -ForegroundColor $Color
+    
+    if ($Text -eq "") {
+        Write-Host ""
+    } else {
+        Write-Host "$indent$Text" -ForegroundColor $Color
+    }
 }
 
-# Export functions
-Export-ModuleMember -Function Initialize-UI, Show-SystemInfoBar, Write-Padded
+function Show-MainMenuTitle {
+    Write-Padded ""
+    Write-Padded "------------------------------------------" -Color DarkGray
+    Write-Padded ""
+}
