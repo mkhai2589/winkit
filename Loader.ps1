@@ -15,9 +15,23 @@ function Write-Status {
     Write-Host "  [$Message]" -ForegroundColor $Color
 }
 
-function Write-Success { param($Message) Write-Status "✓" -Color Green; Write-Host $Message -ForegroundColor Green }
-function Write-Error { param($Message) Write-Status "✗" -Color Red; Write-Host $Message -ForegroundColor Red }
-function Write-Info { param($Message) Write-Status "•" -Color Gray; Write-Host $Message -ForegroundColor Gray }
+function Write-Success { 
+    param($Message) 
+    Write-Status "OK" -Color Green
+    Write-Host $Message -ForegroundColor Green 
+}
+
+function Write-Error { 
+    param($Message) 
+    Write-Status "ERR" -Color Red
+    Write-Host $Message -ForegroundColor Red 
+}
+
+function Write-Info { 
+    param($Message) 
+    Write-Status "INFO" -Color Gray
+    Write-Host $Message -ForegroundColor Gray 
+}
 
 # ============================================
 # VALIDATION FUNCTIONS - KHÔNG PHỤ THUỘC LOGGER
@@ -84,7 +98,7 @@ function Initialize-Loader {
     # Khởi tạo cơ bản trước khi load Logger
     Clear-Host
     Write-Host ""
-    Write-Host "  [•] Initializing WinKit Loader..." -ForegroundColor Gray
+    Write-Host "  [INFO] Initializing WinKit Loader..." -ForegroundColor Gray
     Write-Host ""
     
     # Tạo temp log
@@ -123,7 +137,7 @@ function Start-WinKit {
         foreach ($module in $coreModules) {
             if (Load-CoreModule -ModuleName $module) {
                 $loadedCount++
-                Write-Host "  [✓] $module" -ForegroundColor Green
+                Write-Host "  [OK] $module" -ForegroundColor Green
             }
             else {
                 throw "Failed to load core module: $module"
@@ -190,8 +204,7 @@ function Start-WinKit {
         
         # PHASE 6: LOAD FEATURES
         Write-Info "Loading features..."
-        $featureFiles = Get-ChildItem "features" -Filter "*.ps1" -ErrorAction SilentlyContinue | 
-                        Sort-Object Name
+        $featureFiles = Get-ChildItem "features" -Filter "*.ps1" -ErrorAction SilentlyContinue | Sort-Object Name
         
         if ($featureFiles.Count -gt 0) {
             $loadedFeatures = 0
@@ -209,7 +222,7 @@ function Start-WinKit {
         }
         else {
             Write-Log -Level WARN -Message "No feature files found" -Silent $true
-            Write-Host "  [⚠] No features found" -ForegroundColor Yellow
+            Write-Host "  [WARN] No features found" -ForegroundColor Yellow
         }
         
         # PHASE 7: LOAD MENU
@@ -231,13 +244,13 @@ function Start-WinKit {
             Write-Log -Level INFO -Message "Feature registry validated: $featureCount features" -Silent $true
         }
         else {
-            Write-Host "  [⚠] No features registered" -ForegroundColor Yellow
+            Write-Host "  [WARN] No features registered" -ForegroundColor Yellow
             Write-Log -Level WARN -Message "Feature registry is empty" -Silent $true
         }
         
         # PHASE 9: FINAL CLEANUP AND START
         Write-Host ""
-        Write-Host "  [•] Starting WinKit..." -ForegroundColor Gray
+        Write-Host "  [INFO] Starting WinKit..." -ForegroundColor Gray
         Write-Log -Level INFO -Message "WinKit fully initialized and ready" -Silent $true
         
         Start-Sleep -Milliseconds 500
@@ -245,7 +258,6 @@ function Start-WinKit {
         
         # Bắt đầu menu chính
         Start-Menu
-        
     }
     catch {
         # Ghi lỗi vào temp log nếu Logger chưa sẵn sàng
