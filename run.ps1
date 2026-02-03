@@ -33,10 +33,10 @@ function Write-BootstrapStatus {
     param([string]$Message, [string]$Type = "info")
     
     $prefix = switch ($Type) {
-        "success" { "[✓]" }
-        "error"   { "[✗]" }
-        "warn"    { "[⚠]" }
-        default   { "[•]" }
+        "success" { "[OK]" }
+        "error"   { "[ERR]" }
+        "warn"    { "[WARN]" }
+        default   { "[INFO]" }
     }
     
     $color = switch ($Type) {
@@ -84,9 +84,6 @@ function Set-ExecutionPolicyForce {
     
     foreach ($scope in $scopes) {
         try {
-            # Ghi log vào event log để debug
-            Write-EventLog -LogName Application -Source "WinKit" -EventId 1000 -Message "Setting ExecutionPolicy to Unrestricted ($scope)" -ErrorAction SilentlyContinue
-            
             # Set policy với force
             Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope $scope -Force -ErrorAction Stop
             
@@ -350,21 +347,6 @@ function Launch-WinKit {
         # Chuyển đến thư mục temp
         Set-Location $TempDir
         
-        # Tạo file batch để chạy độc lập
-        $batchContent = @"
-@echo off
-chcp 65001 > nul
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Loader.ps1"
-if %errorlevel% neq 0 (
-    echo.
-    echo WinKit failed to start (Error: %errorlevel%)
-    pause
-)
-"@
-        
-        $batchPath = Join-Path $TempDir "launch.bat"
-        Set-Content -Path $batchPath -Value $batchContent -Encoding ASCII
-        
         Write-BootstrapStatus "Launching WinKit..." -Type "info"
         Start-Sleep -Milliseconds 500
         Clear-Host
@@ -424,7 +406,7 @@ function Show-ErrorHandler {
     
     Write-Host "  Common Solutions:" -ForegroundColor Cyan
     Write-Host "  1. Internet Connection: Ensure you're online" -ForegroundColor Gray
-    Write-Host "  2. Administrator: Right-click PowerShell → Run as Administrator" -ForegroundColor Gray
+    Write-Host "  2. Administrator: Right-click PowerShell -> Run as Administrator" -ForegroundColor Gray
     Write-Host "  3. Execution Policy: Run this command then retry:" -ForegroundColor Gray
     Write-Host "     Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser -Force" -ForegroundColor White
     Write-Host "  4. Firewall/Antivirus: Temporarily disable to test" -ForegroundColor Gray
@@ -507,7 +489,6 @@ function Main {
         Start-Sleep -Seconds 2
         
         Launch-WinKit -TempDir $tempDir
-        
     }
     catch {
         Show-ErrorHandler $_
