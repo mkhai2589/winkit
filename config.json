@@ -2,18 +2,37 @@
     "Window": {
         "Width": 120,
         "Height": 40,
-        "Title": "WinKit - Windows Optimization Toolkit"
+        "Title": "WinKit - Windows Optimization Toolkit",
+        "ResizeOnStart": true,
+        "BufferHeight": 1000
     },
     "UI": {
         "Columns": 2,
         "ShowStatus": true,
         "StatusItems": ["OS", "PowerShell", "Admin", "Mode", "User", "LogPath"],
+        "ShowLogo": true,
+        "LogoCentered": true,
+        "PaddingLeft": 2,
+        "SeparatorChar": "-",
+        "SeparatorLength": 0,  // 0 = auto
         "LogoStyle": "boxed",
-        "ColorScheme": "default"
+        "ColorScheme": "default",
+        "EnableColors": true,
+        "ShowFeatureCount": true
     },
     "Logging": {
         "Path": "%TEMP%\\winkit\\",
         "MaxSizeMB": 1,
-        "MaxBackupFiles": 3
+        "MaxBackupFiles": 3,
+        "LogLevel": "INFO",
+        "EnableConsoleLog": false,
+        "TimestampFormat": "yyyy-MM-dd HH:mm:ss.fff",
+        "EnableLogRotation": true
+    },
+    "Features": {
+        "AutoRegister": true,
+        "RequireAdminCheck": true,
+        "ValidateRequirements": true,
+        "ShowDisabledFeatures": false
     }
 }
