@@ -18,7 +18,58 @@ $Script:RequiredFiles = @(
 )
 
 # ============================================
-# PHASE 0: CLEAN OLD LOGS - CHẠY ĐẦU TIÊN
+# PHASE 0: EXECUTION POLICY AUTO FIX
+# ============================================
+
+function Set-ExecutionPolicyBootstrap {
+    # Set ExecutionPolicy với quyền cao nhất, không hỏi user
+    # Chạy TRƯỚC khi download bất kỳ file nào
+    
+    Write-Host "Setting Execution Policy..." -ForegroundColor Yellow
+    
+    # Thử từng scope với quyền ưu tiên cao nhất
+    $scopes = @("Process", "CurrentUser", "LocalMachine")
+    $success = $false
+    
+    foreach ($scope in $scopes) {
+        try {
+            # Dùng Unrestricted - quyền cao nhất
+            Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope $scope -Force -ErrorAction Stop
+            
+            # Verify
+            $currentPolicy = Get-ExecutionPolicy -Scope $scope
+            if ($currentPolicy -eq "Unrestricted") {
+                Write-Host "  [✓] ExecutionPolicy set to Unrestricted (Scope: $scope)" -ForegroundColor Green
+                $success = $true
+                break
+            }
+        }
+        catch {
+            Write-Host "  [✗] Failed for scope $scope" -ForegroundColor DarkGray
+            # Continue với scope tiếp theo
+        }
+    }
+    
+    # Nếu không thành công với standard scopes, thử registry method
+    if (-not $success) {
+        try {
+            $regPath = "HKLM:\SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell"
+            if (Test-Path $regPath) {
+                Set-ItemProperty -Path $regPath -Name "ExecutionPolicy" -Value "Unrestricted" -Force -ErrorAction Stop
+                Write-Host "  [✓] ExecutionPolicy set via registry" -ForegroundColor Green
+                $success = $true
+            }
+        }
+        catch {
+            Write-Host "  [✗] Registry method failed" -ForegroundColor DarkGray
+        }
+    }
+    
+    return $success
+}
+
+# ============================================
+# PHASE 0.5: CLEAN OLD LOGS - CHẠY ĐẦU TIÊN
 # ============================================
 
 function Clear-OldLogs {
@@ -145,10 +196,17 @@ function Download-RequiredFiles {
         $url = "$Script:GitHubBase/$file"
         $destPath = Join-Path $TempDir $file.Replace("/", "\")
         
+        # Tạo thư mục cha nếu chưa tồn tại
+        $parentDir = Split-Path $destPath -Parent
+        if (-not (Test-Path $parentDir)) {
+            New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
+        }
+        
         if (Get-WebFile -Url $url -Destination $destPath) {
             $successCount++
         }
         else {
+            Write-Host "`n[✗] Failed to download: $file" -ForegroundColor Red
             return $false
         }
         
@@ -217,57 +275,33 @@ function Cleanup-OldVersions {
             }
         }
     }
-    catch {}
+    catch {
+        # Silent fail
+    }
 }
 
 # ============================================
-# MAIN EXECUTION FLOW - ĐƠN GIẢN HÓA
+# PHASE 6: ERROR HANDLING GLOBAL
 # ============================================
 
-function Main {
-    # Xóa log cũ trước khi bắt đầu
-    Clear-OldLogs
+function Show-ErrorScreen {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$ErrorMsg
+    )
     
-    # Hiển thị load screen NGAY
-    Show-LoadScreen
-    
-    # Khởi tạo bootstrap
-    $tempDir = Initialize-Bootstrap
-    if (-not $tempDir) {
-        throw "Failed to create temp directory"
-    }
-    
-    # Tải file
-    if (-not (Download-RequiredFiles -TempDir $tempDir)) {
-        throw "Failed to download files"
-    }
-    
-    # Dọn dẹp
-    Cleanup-OldVersions
-    
-    # Chạy WinKit
-    Write-Host "`nInitializing..." -ForegroundColor Green
-    Start-Sleep -Milliseconds 300
-    Clear-Host
-    
-    Start-LocalWinKit -TempDir $tempDir
-}
-
-# ============================================
-# ERROR HANDLING - KHÔNG DÙNG ReadKey
-# ============================================
-
-trap {
     Write-Host "`n" + ("=" * 60) -ForegroundColor Red
-    Write-Host "BOOTSTRAP ERROR" -ForegroundColor Red
+    Write-Host "WINKIT BOOTSTRAP ERROR" -ForegroundColor Red
     Write-Host ("=" * 60) -ForegroundColor Red
-    Write-Host "Error: $_" -ForegroundColor Yellow
+    Write-Host "Error: $ErrorMsg" -ForegroundColor Yellow
     
     Write-Host "`nTroubleshooting:" -ForegroundColor Cyan
-    Write-Host "1. Run PowerShell as Administrator" -ForegroundColor Gray
-    Write-Host "2. Run: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force" -ForegroundColor White
-    Write-Host "3. Check internet connection" -ForegroundColor Gray
-    Write-Host "4. Try again" -ForegroundColor Gray
+    Write-Host "1. Check internet connection" -ForegroundColor Gray
+    Write-Host "2. Run PowerShell as Administrator" -ForegroundColor Gray
+    Write-Host "3. Try: Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope CurrentUser -Force" -ForegroundColor White
+    Write-Host "4. Check firewall/antivirus settings" -ForegroundColor Gray
+    Write-Host "5. Visit: https://github.com/mkhai2589/winkit" -ForegroundColor Gray
     
     Write-Host "`nType 'exit' and press Enter to close..." -ForegroundColor Gray
     while ($true) {
@@ -279,26 +313,95 @@ trap {
 }
 
 # ============================================
-# ENTRY POINT
+# MAIN EXECUTION FLOW - ĐƠN GIẢN HÓA
 # ============================================
 
-# Kiểm tra PowerShell
+function Main {
+    # PHASE 0: AUTO SET EXECUTION POLICY
+    $policySet = Set-ExecutionPolicyBootstrap
+    if (-not $policySet) {
+        Write-Host "  [⚠] ExecutionPolicy may be restrictive" -ForegroundColor Yellow
+        Write-Host "  [⚠] Some features may not work correctly" -ForegroundColor Yellow
+    }
+    
+    # PHASE 0.5: Xóa log cũ trước khi bắt đầu
+    Clear-OldLogs
+    
+    # PHASE 1: Hiển thị load screen NGAY
+    Show-LoadScreen
+    
+    # PHASE 2: Khởi tạo bootstrap
+    Write-Host "`nInitializing bootstrap..." -ForegroundColor Gray
+    $tempDir = Initialize-Bootstrap
+    if (-not $tempDir) {
+        Show-ErrorScreen "Failed to create temp directory"
+        return
+    }
+    
+    Write-Host "  [✓] Temp directory: $tempDir" -ForegroundColor Green
+    
+    # PHASE 3: Tải file
+    Write-Host "`nDownloading WinKit files..." -ForegroundColor Gray
+    if (-not (Download-RequiredFiles -TempDir $tempDir)) {
+        Show-ErrorScreen "Failed to download required files"
+        return
+    }
+    
+    Write-Host "  [✓] All files downloaded successfully" -ForegroundColor Green
+    
+    # PHASE 4: Dọn dẹp phiên bản cũ
+    Write-Host "`nCleaning up old versions..." -ForegroundColor Gray
+    Cleanup-OldVersions
+    Write-Host "  [✓] Cleanup completed" -ForegroundColor Green
+    
+    # PHASE 5: Chạy WinKit
+    Write-Host "`nStarting WinKit..." -ForegroundColor Gray
+    Start-Sleep -Milliseconds 500
+    Clear-Host
+    
+    try {
+        Start-LocalWinKit -TempDir $tempDir
+    }
+    catch {
+        Show-ErrorScreen $_
+    }
+}
+
+# ============================================
+# GLOBAL PREPARATION
+# ============================================
+
+# Kiểm tra PowerShell version
 if ($PSVersionTable.PSVersion.Major -lt 5) {
     Write-Host "WinKit requires PowerShell 5.1 or later" -ForegroundColor Red
+    Write-Host "Current version: $($PSVersionTable.PSVersion)" -ForegroundColor Red
+    Write-Host "Please update PowerShell and try again." -ForegroundColor Yellow
     exit 1
 }
 
-# Set window
+# Set window size và title
 try {
     $host.UI.RawUI.WindowSize = New-Object System.Management.Automation.Host.Size(120, 40)
     $host.UI.RawUI.BufferSize = New-Object System.Management.Automation.Host.Size(120, 1000)
 }
-catch {}
+catch {
+    # Nếu không thể resize, continue
+    Write-Host "Note: Could not resize console window" -ForegroundColor DarkYellow
+}
 
 # Window title
 $host.UI.RawUI.WindowTitle = "WinKit - Windows Optimization Toolkit"
 
-# Chạy
-Main
+# ============================================
+# ENTRY POINT
+# ============================================
+
+# Chạy main function
+try {
+    Main
+}
+catch {
+    Show-ErrorScreen $_
+}
 
 exit 0
