@@ -83,15 +83,76 @@ function Test-ExecutionPolicy {
     }
 }
 
+# ============================================
+# NEW FUNCTION: AUTO SET EXECUTION POLICY - QUYỀN CAO NHẤT
+# ============================================
+
+function Set-ExecutionPolicyUnrestricted {
+    [CmdletBinding()]
+    param()
+    
+    try {
+        # Priority: Process → CurrentUser → LocalMachine
+        $success = $false
+        $attemptedScopes = @()
+        
+        foreach ($scope in @("Process", "CurrentUser", "LocalMachine")) {
+            try {
+                $attemptedScopes += $scope
+                Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope $scope -Force -ErrorAction Stop
+                Write-Log -Level INFO -Message "ExecutionPolicy set to Unrestricted (Scope: $scope)" -Silent $true
+                $success = $true
+                break  # Dừng khi thành công ở scope đầu tiên
+            }
+            catch {
+                Write-Log -Level WARN -Message "Failed to set ExecutionPolicy for scope $scope: $_" -Silent $true
+                # Continue với scope tiếp theo
+            }
+        }
+        
+        # Nếu không thành công với bất kỳ scope nào, thử bằng registry
+        if (-not $success) {
+            Write-Log -Level WARN -Message "All standard scopes failed, attempting registry method" -Silent $true
+            try {
+                $regPath = "HKLM:\SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell"
+                Set-ItemProperty -Path $regPath -Name "ExecutionPolicy" -Value "Unrestricted" -Force -ErrorAction Stop
+                Write-Log -Level INFO -Message "ExecutionPolicy set via registry" -Silent $true
+                $success = $true
+            }
+            catch {
+                Write-Log -Level ERROR -Message "Registry method also failed: $_" -Silent $true
+            }
+        }
+        
+        # Log tổng kết
+        if ($success) {
+            Write-Log -Level INFO -Message "ExecutionPolicy successfully set to Unrestricted" -Silent $true
+        } else {
+            Write-Log -Level ERROR -Message "All ExecutionPolicy setting methods failed. Attempted scopes: $($attemptedScopes -join ', ')" -Silent $true
+        }
+        
+        return $success
+    }
+    catch {
+        Write-Log -Level ERROR -Message "Set-ExecutionPolicyUnrestricted failed: $_" -Silent $true
+        return $false
+    }
+}
+
 function Get-SystemChecks {
     [CmdletBinding()]
     param()
+    
+    # THÊM: Tự động set Execution Policy trước khi kiểm tra
+    $executionPolicyFixed = Set-ExecutionPolicyUnrestricted
     
     $checks = @{
         IsAdmin = Test-IsAdmin
         PowerShellVersion = Test-PowerShellVersion -MinimumVersion 5
         IsOnline = Test-IsOnline
         ExecutionPolicy = Test-ExecutionPolicy
+        # THÊM DÒNG NÀY - Kết quả auto fix
+        ExecutionPolicyFixed = $executionPolicyFixed
         OSVersion = [System.Environment]::OSVersion.Version
         Is64Bit = [Environment]::Is64BitOperatingSystem
     }
