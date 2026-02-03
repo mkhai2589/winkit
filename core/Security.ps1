@@ -1,17 +1,38 @@
 # core/Security.ps1
 # Security and System Requirement Checks
 
+# Global: Đảm bảo Write-Log tồn tại trước khi sử dụng
+if (-not (Get-Command Write-Log -ErrorAction SilentlyContinue)) {
+    function Write-Log {
+        param($Level, $Message, $Silent)
+        # Fallback - ghi vào temp file nếu Logger chưa load
+        $tempLog = "$env:TEMP\winkit-security-fallback.log"
+        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        Add-Content -Path $tempLog -Value "[$timestamp] [$Level] $Message" -Force
+    }
+}
+
 function Test-IsAdmin {
     [CmdletBinding()]
     param()
     
-    $isAdmin = $false
-    $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object Security.Principal.WindowsPrincipal($currentUser)
-    $isAdmin = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    
-    Write-Log -Level INFO -Message "Admin check result: $isAdmin" -Silent $true
-    return $isAdmin
+    try {
+        $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $principal = New-Object Security.Principal.WindowsPrincipal($currentUser)
+        $isAdmin = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        
+        # Sử dụng Write-Log an toàn
+        if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+            Write-Log -Level INFO -Message "Admin check result: $isAdmin" -Silent $true
+        }
+        return $isAdmin
+    }
+    catch {
+        if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+            Write-Log -Level ERROR -Message "Admin check failed: $_" -Silent $true
+        }
+        return $false
+    }
 }
 
 function Test-PowerShellVersion {
@@ -24,7 +45,10 @@ function Test-PowerShellVersion {
     $psVersion = $PSVersionTable.PSVersion.Major
     $isValid = $psVersion -ge $MinimumVersion
     
-    Write-Log -Level INFO -Message "PowerShell version check: $psVersion (Minimum: $MinimumVersion) - Valid: $isValid" -Silent $true
+    if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+        Write-Log -Level INFO -Message "PowerShell version check: $psVersion (Minimum: $MinimumVersion) - Valid: $isValid" -Silent $true
+    }
+    
     return @{
         IsValid = $isValid
         CurrentVersion = $psVersion
@@ -47,11 +71,15 @@ function Test-IsOnline {
         $result = $ping.Send($TestHost, $Timeout)
         $isOnline = $result.Status -eq [System.Net.NetworkInformation.IPStatus]::Success
         
-        Write-Log -Level INFO -Message "Online check result: $isOnline (Test host: $TestHost)" -Silent $true
+        if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+            Write-Log -Level INFO -Message "Online check result: $isOnline (Test host: $TestHost)" -Silent $true
+        }
         return $isOnline
     }
     catch {
-        Write-Log -Level WARN -Message "Online check failed: $_" -Silent $true
+        if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+            Write-Log -Level WARN -Message "Online check failed: $_" -Silent $true
+        }
         return $false
     }
 }
@@ -65,7 +93,9 @@ function Test-ExecutionPolicy {
         $allowedPolicies = @('RemoteSigned', 'Unrestricted', 'Bypass')
         $isAllowed = $currentPolicy -in $allowedPolicies
         
-        Write-Log -Level INFO -Message "Execution policy: $currentPolicy - Allowed: $isAllowed" -Silent $true
+        if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+            Write-Log -Level INFO -Message "Execution policy: $currentPolicy - Allowed: $isAllowed" -Silent $true
+        }
         
         return @{
             IsAllowed = $isAllowed
@@ -74,7 +104,9 @@ function Test-ExecutionPolicy {
         }
     }
     catch {
-        Write-Log -Level ERROR -Message "Failed to check execution policy: $_" -Silent $true
+        if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+            Write-Log -Level ERROR -Message "Failed to check execution policy: $_" -Silent $true
+        }
         return @{
             IsAllowed = $false
             CurrentPolicy = "Unknown"
@@ -82,10 +114,6 @@ function Test-ExecutionPolicy {
         }
     }
 }
-
-# ============================================
-# NEW FUNCTION: AUTO SET EXECUTION POLICY - QUYỀN CAO NHẤT
-# ============================================
 
 function Set-ExecutionPolicyUnrestricted {
     [CmdletBinding()]
@@ -100,41 +128,49 @@ function Set-ExecutionPolicyUnrestricted {
             try {
                 $attemptedScopes += $scope
                 Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope $scope -Force -ErrorAction Stop
-                Write-Log -Level INFO -Message "ExecutionPolicy set to Unrestricted (Scope: $scope)" -Silent $true
+                
+                if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+                    Write-Log -Level INFO -Message "ExecutionPolicy set to Unrestricted (Scope: $scope)" -Silent $true
+                }
                 $success = $true
                 break  # Dừng khi thành công ở scope đầu tiên
             }
             catch {
-                Write-Log -Level WARN -Message "Failed to set ExecutionPolicy for scope $scope: $_" -Silent $true
+                if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+                    Write-Log -Level WARN -Message "Failed to set ExecutionPolicy for scope $scope: $_" -Silent $true
+                }
                 # Continue với scope tiếp theo
             }
         }
         
         # Nếu không thành công với bất kỳ scope nào, thử bằng registry
         if (-not $success) {
-            Write-Log -Level WARN -Message "All standard scopes failed, attempting registry method" -Silent $true
+            if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+                Write-Log -Level WARN -Message "All standard scopes failed, attempting registry method" -Silent $true
+            }
             try {
                 $regPath = "HKLM:\SOFTWARE\Microsoft\PowerShell\1\ShellIds\Microsoft.PowerShell"
-                Set-ItemProperty -Path $regPath -Name "ExecutionPolicy" -Value "Unrestricted" -Force -ErrorAction Stop
-                Write-Log -Level INFO -Message "ExecutionPolicy set via registry" -Silent $true
-                $success = $true
+                if (Test-Path $regPath) {
+                    Set-ItemProperty -Path $regPath -Name "ExecutionPolicy" -Value "Unrestricted" -Force -ErrorAction Stop
+                    if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+                        Write-Log -Level INFO -Message "ExecutionPolicy set via registry" -Silent $true
+                    }
+                    $success = $true
+                }
             }
             catch {
-                Write-Log -Level ERROR -Message "Registry method also failed: $_" -Silent $true
+                if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+                    Write-Log -Level ERROR -Message "Registry method also failed: $_" -Silent $true
+                }
             }
-        }
-        
-        # Log tổng kết
-        if ($success) {
-            Write-Log -Level INFO -Message "ExecutionPolicy successfully set to Unrestricted" -Silent $true
-        } else {
-            Write-Log -Level ERROR -Message "All ExecutionPolicy setting methods failed. Attempted scopes: $($attemptedScopes -join ', ')" -Silent $true
         }
         
         return $success
     }
     catch {
-        Write-Log -Level ERROR -Message "Set-ExecutionPolicyUnrestricted failed: $_" -Silent $true
+        if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+            Write-Log -Level ERROR -Message "Set-ExecutionPolicyUnrestricted failed: $_" -Silent $true
+        }
         return $false
     }
 }
@@ -158,9 +194,11 @@ function Get-SystemChecks {
     }
     
     # Log all checks
-    foreach ($key in $checks.Keys) {
-        if ($key -ne "OSVersion") {
-            Write-Log -Level DEBUG -Message "System check - $key : $($checks[$key])" -Silent $true
+    if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+        foreach ($key in $checks.Keys) {
+            if ($key -ne "OSVersion") {
+                Write-Log -Level DEBUG -Message "System check - $key : $($checks[$key])" -Silent $true
+            }
         }
     }
     
@@ -195,12 +233,17 @@ function Assert-Requirement {
     
     # Log requirement check
     if ($failedChecks.Count -eq 0) {
-        Write-Log -Level INFO -Message "All requirements satisfied for feature: $($Requirement.Id)" -Silent $true
+        if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+            Write-Log -Level INFO -Message "All requirements satisfied for feature: $($Requirement.Id)" -Silent $true
+        }
         return $true
     }
     else {
         $message = "Requirements failed for feature $($Requirement.Id): " + ($failedChecks -join ", ")
-        Write-Log -Level WARN -Message $message -Silent $true
+        
+        if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+            Write-Log -Level WARN -Message $message -Silent $true
+        }
         
         if ($ExitOnFail) {
             throw $message
