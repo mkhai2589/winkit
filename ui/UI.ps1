@@ -46,7 +46,7 @@ function Show-SystemStatus {
     try {
         # Get system information
         $os = [System.Environment]::OSVersion
-        $osVersion = "$($os.Version.Major).$($os.Version.Minior) Build $($os.Version.Build)"
+        $osVersion = "$($os.Version.Major).$($os.Version.Minor) Build $($os.Version.Build)"
         $osArch = if ([Environment]::Is64BitOperatingSystem) { "64-bit" } else { "32-bit" }
         
         $psVersion = $PSVersionTable.PSVersion.ToString()
@@ -96,82 +96,102 @@ function Show-SystemStatus {
 function Show-Menu {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$false)]
-        [array]$Features = (Get-AllFeatures)
+        [Parameter(Mandatory=$true)]
+        [hashtable]$MenuData  # NHẬN DATA TỪ MENU.PS1, KHÔNG TỰ LẤY
     )
     
     try {
-        if ($Features.Count -eq 0) {
-            Write-Colored "No features available." -Style Error
+        # MenuData có format:
+        # @{
+        #   Categories = @("Essential", "Advanced", "Tools")
+        #   ItemsByCategory = @{
+        #     "Essential" = @(
+        #       @{MenuNumber = 1; Title = "Clean System"; Id = "CleanSystem"}
+        #       @{MenuNumber = 2; Title = "Debloat Windows"; Id = "Debloat"}
+        #     )
+        #     "Advanced" = @(...)
+        #   }
+        #   ExitNumber = 10
+        # }
+        
+        $categories = $MenuData.Categories
+        $itemsByCategory = $MenuData.ItemsByCategory
+        $exitNumber = $MenuData.ExitNumber
+        
+        if (($categories.Count -eq 0) -or ($itemsByCategory.Count -eq 0)) {
+            Write-Colored "No menu data available." -Style Error
             return
         }
         
-        # Group features by category
-        $categories = Get-FeatureCategories
-        
         foreach ($category in $categories) {
-            # Get features in this category
-            $categoryFeatures = Get-FeaturesByCategory -Category $category | Sort-Object Order
+            $items = $itemsByCategory[$category]
             
-            if ($categoryFeatures.Count -eq 0) {
+            if ($items.Count -eq 0) {
                 continue
             }
             
             # Display category header
             Write-Host ""
             Write-Colored "[ $category ]" -Style Section
-            Write-Colored $(Get-SeparatorLine -Length 40) -Style Separator
+            Write-Separator -Length 40
             Write-Host ""
             
-            # Calculate columns
-            $featuresPerColumn = [math]::Ceiling($categoryFeatures.Count / 2)
-            $leftColumn = $categoryFeatures[0..($featuresPerColumn - 1)]
-            $rightColumn = $categoryFeatures[$featuresPerColumn..($categoryFeatures.Count - 1)]
+            # Calculate columns: 2 cột theo config
+            $columns = if ($Global:WinKitConfig.UI.Columns) { $Global:WinKitConfig.UI.Columns } else { 2 }
+            $featuresPerColumn = [math]::Ceiling($items.Count / $columns)
             
-            # Determine max item number
-            $maxItemNumber = ($categoryFeatures | Measure-Object -Property Order -Maximum).Maximum
+            # Chia items thành các cột
+            $columnsData = @()
+            for ($col = 0; $col -lt $columns; $col++) {
+                $startIdx = $col * $featuresPerColumn
+                $endIdx = [math]::Min($startIdx + $featuresPerColumn - 1, $items.Count - 1)
+                if ($startIdx -le $endIdx) {
+                    $columnsData += , @($items[$startIdx..$endIdx])
+                } else {
+                    $columnsData += , @()
+                }
+            }
             
-            # Display in two columns
-            for ($i = 0; $i -lt $featuresPerColumn; $i++) {
-                $leftItem = if ($i -lt $leftColumn.Count) { $leftColumn[$i] } else { $null }
-                $rightItem = if ($i -lt $rightColumn.Count) { $rightColumn[$i] } else { $null }
-                
+            # Hiển thị theo dòng (mỗi dòng có items từ tất cả cột)
+            for ($row = 0; $row -lt $featuresPerColumn; $row++) {
                 $line = ""
                 
-                # Left column
-                if ($leftItem) {
-                    $line += "[$($leftItem.Order)] $($leftItem.Title)"
+                for ($col = 0; $col -lt $columns; $col++) {
+                    if ($row -lt $columnsData[$col].Count) {
+                        $item = $columnsData[$col][$row]
+                        $itemText = "[$($item.MenuNumber)] $($item.Title)"
+                        
+                        # Thêm padding giữa các cột
+                        if ($col -gt 0) {
+                            $columnWidth = 40  # Default width per column
+                            $currentLength = $line.Length % $columnWidth
+                            if ($currentLength -gt 0) {
+                                $padding = $columnWidth - $currentLength
+                                $line += " " * $padding
+                            }
+                        }
+                        
+                        $line += $itemText
+                    }
                 }
                 
-                # Add spacing between columns (adjust based on console width)
-                $consoleWidth = $host.UI.RawUI.WindowSize.Width
-                $columnWidth = if ($consoleWidth -gt 0) { [math]::Floor($consoleWidth / 2) - 10 } else { 40 }
-                $padding = $columnWidth - $line.Length
-                
-                if ($padding -gt 0) {
-                    $line += " " * $padding
+                if ($line.Trim() -ne "") {
+                    Write-Colored $line -Style MenuItem
                 }
-                
-                # Right column
-                if ($rightItem) {
-                    $line += "[$($rightItem.Order)] $($rightItem.Title)"
-                }
-                
-                Write-Colored $line -Style MenuItem
             }
         }
         
         # Add Exit option
         Write-Host ""
-        Write-Colored $(Get-SeparatorLine -Length 80) -Style Separator
+        Write-Separator -Length 80
         Write-Host ""
-        Write-Colored "[0] Exit" -Style MenuItem
+        Write-Colored "[$exitNumber] Exit" -Style MenuItem
         
-        Write-Log -Level DEBUG -Message "Menu displayed with $($Features.Count) features" -Silent $true
+        Write-Log -Level DEBUG -Message "Menu displayed with $($categories.Count) categories" -Silent $true
     }
     catch {
-        Write-Log -Level ERROR -Message "Failed to show menu: $_" -Silent $true
-        Write-Colored "Menu generation failed." -Style Error
+        Write-Log -Level ERROR -Message "Failed to render menu: $_" -Silent $true
+        Write-Colored "Menu rendering failed." -Style Error
     }
 }
 
@@ -179,7 +199,7 @@ function Show-Prompt {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=$false)]
-        [string]$Message = "SELECT OPTION",
+        [string]$Message = "TYPE OPTION",
         
         [Parameter(Mandatory=$false)]
         [string]$Default = ""
@@ -187,7 +207,7 @@ function Show-Prompt {
     
     $promptText = "$Message : "
     
-    if ($Default) {
+    if ($Default -and ($Default -ne "")) {
         $promptText += "[$Default] "
     }
     
@@ -209,9 +229,9 @@ function Show-StatusBar {
     # Map type to color
     $colorMap = @{
         info = "Status"
-        warning = "Status"
+        warning = "Warning"
         error = "Error"
-        success = "Section"
+        success = "Success"
     }
     
     $color = if ($colorMap.ContainsKey($Type)) { $colorMap[$Type] } else { "Status" }
@@ -272,4 +292,3 @@ function Clear-ScreenSafe {
         Write-Host "`n" * 100
     }
 }
-
