@@ -1,20 +1,19 @@
 # core/Security.ps1
 # Security and System Requirement Checks - CHECK ONLY, NO MODIFICATIONS
 
-# Ensure Write-Log exists (fallback for early loading)
+# =========================================================
+# GLOBAL LOGGER FALLBACK (IF LOGGER NOT LOADED)
+# =========================================================
 if (-not (Get-Command Write-Log -ErrorAction SilentlyContinue)) {
     function Write-Log {
         param($Level, $Message, $Silent)
-        # Fallback - write to temp file if Logger not loaded
-        $tempLog = "$env:TEMP\winkit-security-fallback.log"
-        $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-        Add-Content -Path $tempLog -Value "[$timestamp] [$Level] $Message" -Force
+        # Silent fallback - do nothing if logger not loaded
     }
 }
 
-# ====================
-# CHECK FUNCTIONS (ONLY)
-# ====================
+# =========================================================
+# CHECK FUNCTIONS (READ-ONLY, NO SYSTEM MODIFICATIONS)
+# =========================================================
 
 function Test-IsAdmin {
     [CmdletBinding()]
@@ -100,17 +99,9 @@ function Test-ExecutionPolicy {
     }
 }
 
-# ====================
-# REMOVED FUNCTIONS
-# ====================
-# ❌ XÓA HOÀN TOÀN:
-# Set-ExecutionPolicyUnrestricted
-# Get-SystemChecks (nếu có)
-# Bất kỳ hàm nào có chữ "Set", "Fix", "Change", "Modify"
-
-# ====================
-# NEW ASSERT-REQUIREMENT FUNCTION
-# ====================
+# =========================================================
+# REQUIREMENT ASSERTION ENGINE
+# =========================================================
 
 function Assert-Requirement {
     [CmdletBinding()]
@@ -122,78 +113,68 @@ function Assert-Requirement {
         [bool]$ExitOnFail = $false,
         
         [Parameter(Mandatory=$false)]
-        [hashtable]$AdditionalContext = @{}
+        [switch]$ReturnMessage
     )
     
-    # Get unified context
+    # Get unified context (raw facts only)
     $context = Get-WinKitContext
-    
-    # Merge additional context if provided
-    if ($AdditionalContext.Count -gt 0) {
-        foreach ($key in $AdditionalContext.Keys) {
-            $context | Add-Member -NotePropertyName $key -NotePropertyValue $AdditionalContext[$key] -Force
-        }
-    }
     
     try {
         # Invoke the feature's Requirement scriptblock
+        # Expected return format: @($bool, $string)
         $result = $feature.Requirement.Invoke($context, $feature)
         
-        # Expected result format: @($passed, $message)
         if ($result[0] -eq $true) {
             Write-Log -Level INFO -Message "Requirements satisfied for feature: $($feature.Id) - $($result[1])" -Silent $true
+            
+            if ($ReturnMessage) {
+                return $true, $result[1]
+            }
             return $true
         } else {
-            $message = "Requirements failed for feature $($feature.Id): $($result[1])"
+            $message = "Requirements failed for $($feature.Id): $($result[1])"
             Write-Log -Level WARN -Message $message -Silent $true
             
             if ($ExitOnFail) {
                 throw $message
             }
+            
+            if ($ReturnMessage) {
+                return $false, $result[1]
+            }
             return $false
         }
     } catch {
-        $errorMsg = "Requirement check failed for feature $($feature.Id): $_"
+        $errorMsg = "Requirement check failed for $($feature.Id): $_"
         Write-Log -Level ERROR -Message $errorMsg -Silent $true
         
         if ($ExitOnFail) {
             throw $errorMsg
         }
+        
+        if ($ReturnMessage) {
+            return $false, "Internal error checking requirements"
+        }
         return $false
     }
 }
 
-# ====================
-# UTILITY FUNCTIONS
-# ====================
+# =========================================================
+# DEPRECATED FUNCTIONS (REMOVED)
+# =========================================================
+# ❌ XOÁ HOÀN TOÀN:
+# - Set-ExecutionPolicyUnrestricted
+# - Get-SystemChecks 
+# - Bất kỳ hàm nào bắt đầu bằng "Set-", "Fix-", "Change-"
 
-function Get-BasicSystemInfo {
-    [CmdletBinding()]
-    param()
-    
-    $context = Get-WinKitContext
-    
-    return [PSCustomObject]@{
-        OSVersion    = $context.System.OSVersion
-        Architecture = $context.System.Architecture
-        IsAdmin      = $context.Security.IsAdmin
-        IsOnline     = $context.Security.IsOnline
-        PSVersion    = $context.Security.PSVersion
-        ComputerName = $context.System.ComputerName
-        UserName     = $context.System.UserName
-    }
-}
-
-# Export only check functions
-$exportFunctions = @(
-    'Test-IsAdmin',
-    'Test-PowerShellVersion',
-    'Test-IsOnline',
-    'Test-ExecutionPolicy',
-    'Assert-Requirement',
-    'Get-BasicSystemInfo'
-)
-
+# =========================================================
+# MODULE EXPORT
+# =========================================================
 if ($MyInvocation.InvocationName -ne '.') {
-    Export-ModuleMember -Function $exportFunctions
+    Export-ModuleMember -Function `
+        Test-IsAdmin, `
+        Test-PowerShellVersion, `
+        Test-IsOnline, `
+        Test-ExecutionPolicy, `
+        Assert-Requirement
 }
