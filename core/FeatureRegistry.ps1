@@ -9,10 +9,12 @@
 # ❌ No UI
 # ❌ No requirement execution
 # ❌ No business logic
+#
+# SINGLE SOURCE OF TRUTH FOR FEATURES
 # =========================================================
 
 # =========================================================
-# GLOBAL REGISTRY (SINGLE SOURCE)
+# GLOBAL REGISTRY (SINGLE INSTANCE)
 # =========================================================
 if (-not $Global:WinKitFeatureRegistry) {
     $Global:WinKitFeatureRegistry = @()
@@ -30,30 +32,30 @@ function Register-Feature {
         [Parameter(Mandatory)]
         [ScriptBlock]$ScriptBlock,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter()]
         [ScriptBlock]$Requirement
     )
 
-    # -------------------------
-    # Validate metadata (HARD RULE)
-    # -------------------------
-    $requiredFields = @('Id', 'Title', 'Category', 'Order')
-    foreach ($field in $requiredFields) {
+    # -----------------------------------------------------
+    # HARD VALIDATION – REQUIRED METADATA
+    # -----------------------------------------------------
+    foreach ($field in @('Id', 'Title', 'Category', 'Order')) {
         if (-not $Metadata.ContainsKey($field)) {
             throw "Feature registration failed: Missing required metadata field '$field'"
         }
     }
 
-    # -------------------------
-    # Prevent duplicate feature ID
-    # -------------------------
+    # -----------------------------------------------------
+    # PREVENT DUPLICATE FEATURE ID
+    # -----------------------------------------------------
     if ($Global:WinKitFeatureRegistry.Id -contains $Metadata.Id) {
         throw "Feature registration failed: Duplicate Feature Id '$($Metadata.Id)'"
     }
 
-    # -------------------------
-    # Backward compatibility requirement
-    # -------------------------
+    # -----------------------------------------------------
+    # BACKWARD-COMPAT REQUIREMENT ADAPTER
+    # (RequireAdmin / OnlineOnly legacy support)
+    # -----------------------------------------------------
     if (-not $Requirement) {
         $Requirement = {
             param($Context, $Feature)
@@ -62,7 +64,7 @@ function Register-Feature {
                 return $false, "Administrator privileges required"
             }
 
-            if ($Feature.OnlineOnly -and -not ($Context.Network.PingResults.Success -contains $true)) {
+            if ($Feature.OnlineOnly -and -not ($Context.Network.PingResults | Where-Object Success -eq $true)) {
                 return $false, "Internet connection required"
             }
 
@@ -70,27 +72,27 @@ function Register-Feature {
         }
     }
 
-    # -------------------------
-    # Build immutable feature object
-    # -------------------------
+    # -----------------------------------------------------
+    # BUILD FEATURE OBJECT (DATA + BEHAVIOR HANDLE)
+    # -----------------------------------------------------
     $feature = [PSCustomObject]@{
         # Identity
-        Id          = $Metadata.Id
-        Title       = $Metadata.Title
-        Category    = $Metadata.Category
-        Order       = $Metadata.Order
+        Id           = $Metadata.Id
+        Title        = $Metadata.Title
+        Category     = $Metadata.Category
+        Order        = $Metadata.Order
 
         # Optional metadata
-        Description = $Metadata.Description ?? ""
-        Author      = $Metadata.Author ?? ""
-        Version     = $Metadata.Version ?? "1.0.0"
-        Tags        = $Metadata.Tags ?? @()
+        Description  = $Metadata.Description ?? ""
+        Author       = $Metadata.Author ?? ""
+        Version      = $Metadata.Version ?? "1.0.0"
+        Tags         = $Metadata.Tags ?? @()
 
-        # Execution
-        ScriptBlock = $ScriptBlock
-        Requirement = $Requirement
+        # Execution & requirement
+        ScriptBlock  = $ScriptBlock
+        Requirement  = $Requirement
 
-        # Legacy flags (DEPRECATED – READ ONLY)
+        # Legacy flags (READ-ONLY / DEPRECATED)
         RequireAdmin = [bool]($Metadata.RequireAdmin ?? $false)
         OnlineOnly   = [bool]($Metadata.OnlineOnly ?? $false)
 
@@ -99,12 +101,17 @@ function Register-Feature {
         RegisteredAt = Get-Date
     }
 
-    # -------------------------
-    # Register
-    # -------------------------
-    $Global:WinKitFeatureRegistry += $feature
+    # -----------------------------------------------------
+    # IMMUTABLE FEATURE OBJECT (LOCK PROPERTIES)
+    # -----------------------------------------------------
+    $feature.PSObject.Properties |
+        Where-Object IsSettable |
+        ForEach-Object { $_.IsSettable = $false }
 
-    # Keep registry sorted
+    # -----------------------------------------------------
+    # REGISTER FEATURE
+    # -----------------------------------------------------
+    $Global:WinKitFeatureRegistry += $feature
     $Global:WinKitFeatureRegistry =
         $Global:WinKitFeatureRegistry |
         Sort-Object Category, Order
@@ -115,22 +122,32 @@ function Register-Feature {
 }
 
 # =========================================================
-# QUERY FUNCTIONS (READ ONLY)
+# QUERY FUNCTIONS (READ-ONLY)
 # =========================================================
 function Get-AllFeatures {
     return $Global:WinKitFeatureRegistry
 }
 
 function Get-FeatureById {
-    param([Parameter(Mandatory)][string]$Id)
-    return $Global:WinKitFeatureRegistry | Where-Object Id -eq $Id | Select-Object -First 1
+    param(
+        [Parameter(Mandatory)]
+        [string]$Id
+    )
+
+    return $Global:WinKitFeatureRegistry |
+        Where-Object Id -eq $Id |
+        Select-Object -First 1
 }
 
 function Get-FeaturesByCategory {
-    param([string]$Category)
+    param(
+        [string]$Category
+    )
+
     if ($Category) {
         return $Global:WinKitFeatureRegistry | Where-Object Category -eq $Category
     }
+
     return $Global:WinKitFeatureRegistry
 }
 
@@ -168,12 +185,13 @@ function Invoke-Feature {
 function Clear-FeatureRegistry {
     $count = $Global:WinKitFeatureRegistry.Count
     $Global:WinKitFeatureRegistry = @()
+
     Write-Log -Level WARN -Message "Feature registry cleared ($count features removed)" -Silent $true
     return $count
 }
 
 # =========================================================
-# MODULE EXPORT (SAFE)
+# MODULE EXPORT
 # =========================================================
 if ($MyInvocation.InvocationName -ne '.') {
     Export-ModuleMember -Function `
