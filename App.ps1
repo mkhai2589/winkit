@@ -1,64 +1,59 @@
-# App.ps1
-# WinKit Application Entry
-# RESPONSIBILITY:
-# - Initialize system
-# - Render UI
-# - Handle main loop
+# =========================================================
+# App.ps1 - WinKit Application Entry (FINAL)
+# =========================================================
 
-# ==============================
-# LOAD CORE & UI
-# ==============================
-Load-Modules -Modules @(
-    'Logger',
-    'Utils',
-    'Security',
-    'FeatureRegistry',
-    'Interface'
-) -Layer 'core'
+function Start-WinKit {
+    [CmdletBinding()]
+    param()
 
-Load-Modules -Modules @(
-    'Theme',
-    'Logo',
-    'UI'
-) -Layer 'ui'
+    try {
+        # ---------- Theme ----------
+        $themeName = 'default'
+        if ($Global:WinKitConfig -and $Global:WinKitConfig.UI -and $Global:WinKitConfig.UI.Theme) {
+            $themeName = $Global:WinKitConfig.UI.Theme
+        }
+        Initialize-Theme -ColorScheme $themeName | Out-Null
 
-# ==============================
-# INIT CONFIG
-# ==============================
-if (-not $Global:WinKitConfig) {
-    $Global:WinKitConfig = Get-Content "config.json" -Raw | ConvertFrom-Json
-}
+        # ---------- Header ----------
+        Show-Header -WithStatus
 
-# ==============================
-# INIT THEME (PS 5.1 SAFE)
-# ==============================
-$themeName = 'default'
-if ($Global:WinKitConfig.UI -and $Global:WinKitConfig.UI.Theme) {
-    $themeName = $Global:WinKitConfig.UI.Theme
-}
-Initialize-Theme -ColorScheme $themeName | Out-Null
+        # ---------- Menu Loop ----------
+        while ($true) {
 
-# ==============================
-# LOAD FEATURES
-# ==============================
-Get-ChildItem "features\*.ps1" | ForEach-Object {
-    . $_.FullName
-}
+            $menuData = Get-MenuData
+            Show-Menu -MenuData $menuData
 
-# ==============================
-# MAIN LOOP
-# ==============================
-while ($true) {
-    Show-Header -WithStatus
+            $choice = Show-Prompt -Message "SELECT OPTION"
+            if (-not $choice) { continue }
 
-    $menuData = Build-MenuData   # từ Menu.ps1
-    Show-Menu -MenuData $menuData
+            if ($choice -eq $menuData.ExitNumber.ToString()) {
+                Write-Colored "Exiting WinKit..." -Style Status
+                break
+            }
 
-    $choice = Show-Prompt "SELECT OPTION"
+            $feature = Get-FeatureByNumber -Number ([int]$choice)
 
-    if ($choice -eq $menuData.ExitNumber) {
-        break
+            if (-not $feature) {
+                Write-Colored "Invalid option!" -Style Error
+                Start-Sleep 1
+                Show-Header
+                continue
+            }
+
+            try {
+                Assert-Requirement -Feature $feature
+                Invoke-Feature -Feature $feature
+            }
+            catch {
+                Write-Colored $_.Exception.Message -Style Error
+            }
+
+            Write-Colored "Press Enter to return to menu..." -Style Prompt
+            Read-Host | Out-Null
+            Show-Header
+        }
     }
-
-    Invoke-MenuSelection -Choice $choice -MenuData $menuData
+    catch {
+        Write-Colored "Fatal error: $($_.Exception.Message)" -Style Error
+    }
 }
