@@ -1,6 +1,20 @@
-# ui/Logo.ps1 - ASCII Logo Renderer
+# =========================================================
+# ui/Logo.ps1
+# WinKit ASCII Logo Renderer
+#
+# PURPOSE:
+# - Render static ASCII logo
+# - Optional centered output
+#
+# ❌ No business logic
+# ❌ No system state
+# ❌ No dependency on Feature / Context
+# =========================================================
 
-$Global:WinKitLogo = @"
+# =========================================================
+# STATIC LOGO CONTENT (IMMUTABLE)
+# =========================================================
+$script:WinKitLogo = @"
               W I N K I T
       __        ___      _  ___ _ _
       \ \      / (_)_ __| |/ (_) | |
@@ -9,35 +23,52 @@ $Global:WinKitLogo = @"
          \_/\_/  |_|_|  |_|\_\_|_|_|
 
         Windows Optimization Toolkit
-        Author: Minh Khai Contact: 0333090930
+        Author: Minh Khai  |  Contact: 0333090930
 "@
 
+# =========================================================
+# GET LOGO (PURE)
+# =========================================================
 function Get-Logo {
     [CmdletBinding()]
     param()
-    
-    return $Global:WinKitLogo
+
+    return $script:WinKitLogo
 }
 
+# =========================================================
+# RENDER LOGO
+# =========================================================
 function Show-Logo {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$false)]
         [switch]$Centered
     )
-    
-    $logo = Get-Logo
-    $logoLines = $logo -split "`n"
-    
-    foreach ($line in $logoLines) {
-        if ($Centered) {
-            $consoleWidth = $host.UI.RawUI.WindowSize.Width
-            if ($consoleWidth -gt 0) {
-                $padding = [math]::Max(0, [math]::Floor(($consoleWidth - $line.Length) / 2))
-                $line = (" " * $padding) + $line
-            }
-        }
-        
-        Write-Host $line -ForegroundColor Cyan
+
+    $lines = (Get-Logo) -split "`n"
+
+    $width = 0
+    if ($Centered -and $Host.UI -and $Host.UI.RawUI) {
+        $width = $Host.UI.RawUI.WindowSize.Width
     }
+
+    foreach ($line in $lines) {
+        $output = $line
+
+        if ($Centered -and $width -gt 0) {
+            $pad = [math]::Max(0, [math]::Floor(($width - $line.Length) / 2))
+            $output = (' ' * $pad) + $line
+        }
+
+        Write-Host $output -ForegroundColor Cyan
+    }
+}
+
+# =========================================================
+# MODULE EXPORT
+# =========================================================
+if ($MyInvocation.InvocationName -ne '.') {
+    Export-ModuleMember -Function `
+        Get-Logo, `
+        Show-Logo
 }
