@@ -1,37 +1,49 @@
+# =========================================================
 # core/Utils.ps1
-# Common Utilities - String, Layout, System Info Helpers
+# WinKit Common Utilities
+#
+# PURPOSE:
+# - Pure helper functions
+# - String / System / Retry / Format helpers
+#
+# ❌ No business logic
+# ❌ No UI dependency
+# ❌ No global state
+#
+# All functions must be deterministic & reusable
+# =========================================================
 
+# =========================================================
+# STRING FORMATTER
+# =========================================================
 function Format-String {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory)]
         [string]$Text,
-        
-        [Parameter(Mandatory=$false)]
+
         [int]$Width = 120,
-        
-        [Parameter(Mandatory=$false)]
+
         [ValidateSet('Left', 'Center', 'Right')]
         [string]$Align = 'Left',
-        
-        [Parameter(Mandatory=$false)]
-        [string]$PaddingChar = ' '
+
+        [char]$PaddingChar = ' '
     )
-    
+
     if ($Text.Length -ge $Width) {
         return $Text.Substring(0, $Width)
     }
-    
+
     $padLength = $Width - $Text.Length
-    
+
     switch ($Align) {
         'Left' {
             return $Text + ($PaddingChar * $padLength)
         }
         'Center' {
-            $leftPad = [math]::Floor($padLength / 2)
-            $rightPad = $padLength - $leftPad
-            return ($PaddingChar * $leftPad) + $Text + ($PaddingChar * $rightPad)
+            $left = [math]::Floor($padLength / 2)
+            $right = $padLength - $left
+            return ($PaddingChar * $left) + $Text + ($PaddingChar * $right)
         }
         'Right' {
             return ($PaddingChar * $padLength) + $Text
@@ -39,112 +51,143 @@ function Format-String {
     }
 }
 
+# =========================================================
+# DISK INFORMATION (SAFE)
+# =========================================================
 function Get-DiskInfo {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$false)]
-        [string]$DriveLetter = "C:"
+        [string]$DriveLetter = "C"
     )
-    
+
     try {
-        $disk = Get-PSDrive -Name $DriveLetter -ErrorAction Stop
-        $totalGB = [math]::Round($disk.Free + $disk.Used / 1GB, 2)
-        $freeGB = [math]::Round($disk.Free / 1GB, 2)
-        $usedPercent = [math]::Round(($disk.Used / ($disk.Free + $disk.Used)) * 100, 1)
-        
+        $drive = Get-PSDrive -Name $DriveLetter -ErrorAction Stop
+        $total = $drive.Used + $drive.Free
+
         return @{
-            TotalGB = $totalGB
-            FreeGB = $freeGB
-            UsedPercent = $usedPercent
-            Drive = $DriveLetter
+            Drive       = "$DriveLetter:"
+            TotalGB     = [math]::Round($total / 1GB, 2)
+            FreeGB      = [math]::Round($drive.Free / 1GB, 2)
+            UsedPercent = if ($total -gt 0) {
+                [math]::Round(($drive.Used / $total) * 100, 1)
+            } else {
+                0
+            }
         }
     }
     catch {
         return @{
-            TotalGB = 0
-            FreeGB = 0
+            Drive       = "$DriveLetter:"
+            TotalGB     = 0
+            FreeGB      = 0
             UsedPercent = 0
-            Drive = $DriveLetter
-            Error = $_.Exception.Message
+            Error       = $_.Exception.Message
         }
     }
 }
 
+# =========================================================
+# ADMIN CHECK (PURE)
+# =========================================================
 function Test-IsElevated {
     [CmdletBinding()]
     param()
-    
-    $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object System.Security.Principal.WindowsPrincipal($identity)
-    return $principal.IsInRole([System.Security.Principal.WindowsBuiltInRole]::Administrator)
+
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = [Security.Principal.WindowsPrincipal]$identity
+
+    return $principal.IsInRole(
+        [Security.Principal.WindowsBuiltInRole]::Administrator
+    )
 }
 
+# =========================================================
+# BYTE SIZE FORMATTER
+# =========================================================
 function Get-FormattedSize {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory)]
         [double]$Bytes
     )
-    
+
     $units = @('B', 'KB', 'MB', 'GB', 'TB')
-    $unitIndex = 0
-    
-    while ($Bytes -ge 1024 -and $unitIndex -lt $units.Length - 1) {
+    $index = 0
+
+    while ($Bytes -ge 1024 -and $index -lt ($units.Count - 1)) {
         $Bytes /= 1024
-        $unitIndex++
+        $index++
     }
-    
-    return "{0:N2} {1}" -f $Bytes, $units[$unitIndex]
+
+    return "{0:N2} {1}" -f $Bytes, $units[$index]
 }
 
+# =========================================================
+# INVOKE WITH RETRY (CONTROLLED SIDE-EFFECT)
+# =========================================================
 function Invoke-WithRetry {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory)]
         [ScriptBlock]$ScriptBlock,
-        
-        [Parameter(Mandatory=$false)]
+
         [int]$MaxRetries = 3,
-        
-        [Parameter(Mandatory=$false)]
         [int]$RetryDelay = 1000
     )
-    
-    $retryCount = 0
+
+    $attempt = 0
     $lastError = $null
-    
-    while ($retryCount -le $MaxRetries) {
+
+    while ($attempt -lt $MaxRetries) {
         try {
             return & $ScriptBlock
         }
         catch {
             $lastError = $_
-            $retryCount++
-            
-            if ($retryCount -le $MaxRetries) {
-                Write-Log -Level WARN -Message "Retry $retryCount/$MaxRetries after error: $_" -Silent $true
-                Start-Sleep -Milliseconds $RetryDelay
-            }
+            $attempt++
+
+            Write-Log `
+                -Level WARN `
+                -Message "Retry $attempt/$MaxRetries failed: $($_.Exception.Message)" `
+                -Silent $true
+
+            Start-Sleep -Milliseconds $RetryDelay
         }
     }
-    
+
     throw $lastError
 }
 
+# =========================================================
+# TIMESAPN FORMATTER
+# =========================================================
 function Format-TimeSpan {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory)]
         [TimeSpan]$TimeSpan
     )
-    
-    if ($TimeSpan.TotalMinutes -lt 1) {
-        return "$([math]::Round($TimeSpan.TotalSeconds, 1)) seconds"
+
+    if ($TimeSpan.TotalSeconds -lt 60) {
+        return "{0:N1} seconds" -f $TimeSpan.TotalSeconds
     }
-    elseif ($TimeSpan.TotalHours -lt 1) {
-        return "$([math]::Round($TimeSpan.TotalMinutes, 1)) minutes"
+
+    if ($TimeSpan.TotalMinutes -lt 60) {
+        return "{0:N1} minutes" -f $TimeSpan.TotalMinutes
     }
-    else {
-        return "$([math]::Round($TimeSpan.TotalHours, 1)) hours"
-    }
+
+    return "{0:N1} hours" -f $TimeSpan.TotalHours
+}
+
+# =========================================================
+# MODULE EXPORT
+# =========================================================
+if ($MyInvocation.InvocationName -ne '.') {
+    Export-ModuleMember -Function `
+        Format-String, `
+        Get-DiskInfo, `
+        Test-IsElevated, `
+        Get-FormattedSize, `
+        Invoke-WithRetry, `
+        Format-TimeSpan
 }
