@@ -1,6 +1,5 @@
 # Menu.ps1
 # WinKit Menu Generator - READ REGISTRY ONLY, No Business Logic
-
 # KHÔNG Export-ModuleMember - dot-source only
 
 function Start-Menu {
@@ -45,14 +44,17 @@ function Start-Menu {
                 $selectedFeature = $menuLayout[[int]$selection]
                 Write-Log -Level INFO -Message "User selected feature: $($selectedFeature.Id) (option $selection)" -Silent $true
 
-                # ✅ SỬA Ở ĐÂY: Menu BLIND to requirements
-                if (-not (Assert-Requirement -Feature $selectedFeature -ExitOnFail $false)) {
-                    Show-StatusBar -Message "FEATURE REQUIREMENTS NOT MET: $($selectedFeature.Title)" -Type warning
+                # ✅ REQUIREMENT CHECK DUY NHẤT Ở ĐÂY
+                $requirementResult = Assert-Requirement -Feature $selectedFeature -ExitOnFail $false -ReturnMessage
+                
+                if (-not $requirementResult[0]) {
+                    # Hiển thị thông báo từ Requirement check
+                    Show-StatusBar -Message "REQUIREMENTS NOT MET: $($requirementResult[1])" -Type warning
                     Start-Sleep -Seconds 3
                     continue
                 }
 
-                # Execute feature wrapper
+                # Execute feature wrapper (GIẢ ĐỊNH FEATURE ĐÃ HỢP LỆ)
                 Invoke-FeatureWrapper -Feature $selectedFeature
             }
             else {
@@ -184,22 +186,18 @@ function Invoke-FeatureWrapper {
         Write-Host ""
         Write-Colored "Processing..." -Style Status -Center
 
-        # ✅ SỬA Ở ĐÂY: Menu BLIND to requirements - just check
-        if (-not (Assert-Requirement -Feature $Feature -ExitOnFail $false)) {
-            # Requirement already logged by Assert-Requirement
-            # Just show UI feedback and return
-            Write-Host ""
-            Write-Colored "❌ REQUIREMENTS NOT MET" -Style Error -Center
-            Write-Colored "Feature cannot run due to system requirements" -Style Status -Center
-            Start-Sleep -Seconds 2
-            return
-        }
+        # ✅ KHÔNG CÓ REQUIREMENT CHECK Ở ĐÂY
+        # Giả định requirement đã được check ở Start-Menu
+        # Wrapper chỉ tập trung vào execution và hiển thị kết quả
 
         # Execute the feature
         $startTime = Get-Date
+        Write-Log -Level INFO -Message "Starting feature execution: $($Feature.Id)" -Silent $true
         $result = Invoke-Feature -Id $Feature.Id
         $endTime = Get-Date
         $duration = $endTime - $startTime
+
+        Write-Log -Level INFO -Message "Feature execution completed: $($Feature.Id) - Duration: $($duration.TotalSeconds) seconds" -Silent $true
 
         # Show result
         Clear-ScreenSafe
