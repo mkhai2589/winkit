@@ -1,67 +1,60 @@
 # =========================================================
-# Loader.ps1 - WinKit Core Loader (FINAL)
+# Loader.ps1 - WinKit Module Loader (FINAL)
 # =========================================================
 
+# Global load state
 if (-not $Global:WinKitLoadState) {
     $Global:WinKitLoadState = @{
-        Loaded  = @()
-        Failed  = @()
-        Started = Get-Date
+        Loaded = @()
+        Failed = @()
+        Start = Get-Date
     }
 }
 
-function Load-CoreModule {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)][string]$ModuleName,
-        [ValidateSet('core','ui')][string]$Layer = 'core'
-    )
+function Load-Module {
+    param([string]$Path)
 
-    $path = Join-Path $Layer "$ModuleName.ps1"
-
-    if (-not (Test-Path $path)) {
-        $Global:WinKitLoadState.Failed += $ModuleName
-        throw "Loader: File not found -> $path"
+    if (-not (Test-Path $Path)) {
+        $Global:WinKitLoadState.Failed += $Path
+        throw "Loader: Missing $Path"
     }
 
-    try {
-        . $path
+    . $Path
+    $Global:WinKitLoadState.Loaded += $Path
+}
 
-        if ($ModuleName -eq 'Logger') {
-            if (-not (Get-Command Write-Log -ErrorAction SilentlyContinue)) {
-                throw "Logger loaded but Write-Log missing"
-            }
+function Initialize-Modules {
+    # CRITICAL LOAD ORDER
+    $order = @(
+        "core\Logger.ps1",
+        "core\Context.ps1", 
+        "core\Utils.ps1",
+        "core\Security.ps1",
+        "core\FeatureRegistry.ps1",
+        "core\Interface.ps1",
+        "ui\Theme.ps1",
+        "ui\Logo.ps1",
+        "ui\UI.ps1",
+        "Menu.ps1"
+    )
+
+    foreach ($module in $order) {
+        try {
+            Load-Module $module
         }
-
-        $Global:WinKitLoadState.Loaded += $ModuleName
-        return $true
+        catch {
+            throw "Failed to load $module : $_"
+        }
     }
-    catch {
-        $Global:WinKitLoadState.Failed += $ModuleName
-        throw "Loader: Failed $ModuleName -> $($_.Exception.Message)"
-    }
-}
 
-function Load-Modules {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)][string[]]$Modules,
-        [ValidateSet('core','ui')][string]$Layer = 'core'
-    )
-
-    foreach ($m in $Modules) {
-        Load-CoreModule -ModuleName $m -Layer $Layer
-    }
-    return $true
-}
-
-function Get-LoadState {
-    [CmdletBinding()]
-    param()
-
-    [PSCustomObject]@{
-        Loaded   = $Global:WinKitLoadState.Loaded
-        Failed   = $Global:WinKitLoadState.Failed
-        Duration = (Get-Date) - $Global:WinKitLoadState.Started
+    # Load all features
+    $featureFiles = Get-ChildItem "features\*.ps1" -ErrorAction SilentlyContinue
+    foreach ($file in $featureFiles) {
+        try {
+            Load-Module $file.FullName
+        }
+        catch {
+            # Non-fatal: continue loading other features
+        }
     }
 }
